@@ -1,0 +1,46 @@
+{
+  "name": "brutal",
+  "author": "irek",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-watchface",
+    "hackathon2",
+    "rebble",
+    "repebble",
+    "brutal"
+  ],
+  "private": false,
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
+  "pebble": {
+    "displayName": "brutal",
+    "uuid": "ceab2ac8-a9b0-451c-a3e2-d00a8fd5fc52",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "BGCOLOR",
+      "FGCOLOR",
+      "DATE"
+    ],
+    "resources": {
+      "media": [
+        {
+          "menuIcon": "true",
+          "type": "png",
+          "name": "MENU_ICON",
+          "file": "icon.png"
+        }
+      ]
+    }
+  }
+}
