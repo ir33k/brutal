@@ -75,6 +75,35 @@ not only in Gimp which makes a huge difference.
 Yes this time I'm not using Inkscape, we are not friends anymore </3
 
 
+2025.03.01 Sat 13:10 Done properly, design is a heroic act
+----------------------------------------------------------
+
+... done properly.
+
+I was thinking about design for a month now.  Initially I wanted to
+have 3 rows of big numbers.  I liked the idea of 9 digits because I
+could display text PEBBLE, and 3 rows play very nice with the quick
+view popup as only the last bottom row disappear.
+
+```
+    .-------.    .-------.    .-------. 
+    |  1 2  |    |  P E  |    |  1 2  |
+    |  3 4  |    |  B B  |    |__3_4__|
+    |  5 6  |    |  L E  |    | popup |
+    '-------'    '-------'    '-------' 
+```
+
+But no matter what I tried the design just didn't worked.  The number
+where way to small, they where either stretched or a lot of the screen
+space was not used.  This wasn't the look and feel I'm going for.
+
+I want my font to feel bold and heavy.  Then I realized that to make
+font feel bigger I need the contrast.  I have to put big numbers next
+to very small font.  With that the feeling of size will be emphasized.
+
+![First test of design on Pebble time](picture/01.jpeg)
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/
