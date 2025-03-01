@@ -131,6 +131,19 @@ about the feeling.
 > glory.  Do you understand? - Bruce Lee
 
 
+2025.03.01 Sat 16:32 Glyphs v1
+------------------------------
+
+I have first version of glyphs for both fonts.  The main big font has
+only numbers and it's a proportional font.  The small monospace font
+has uppercase letters, numbers and few special characters.
+
+![First version of glyphs for both fonts](picture/02.png)
+
+I'm not happy about few letters, mostly `M` and `W` but I want to do
+some programming now.
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/
