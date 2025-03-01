@@ -144,6 +144,24 @@ I'm not happy about few letters, mostly `M` and `W` but I want to do
 some programming now.
 
 
+2025.03.01 Sat 20:53 First tryyyyy!
+-----------------------------------
+
+Well, that was fast.  I just implemented the most basic version of
+watchface using glyphs atlas.  Both fonts works as expected.
+
+![First working version of watchface on Pebble time](picture/03.jpeg)
+
+Time for break.  Here is a rough list of things to do next:
+
+1. Redesign number `0`, it's not heavy enough.
+2. Settings, custom background and foreground color, data format etc.
+3. Background reflecting battery status.
+4. Refactor, use multiple layers, avoid numbers.
+5. Animations.
+6. Icon.
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/

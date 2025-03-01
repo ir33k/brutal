@@ -1,47 +1,103 @@
-/*
-Capitalized functions are callbacks.
-*/
-
 #include <pebble.h>
 
 #define CONFKEY 1
+#define MARGIN 5
 
 static struct {
 	GColor bg, fg;
 	char fmt[16];
 } config;
 
-static struct {
-	Layer *bg;
-	TextLayer *time, *date;
-} layer;
+static Layer *background;
+static GBitmap *glyphs, *glyph[64];
 
-static char *format;
-static GFont font0, font1;
-
-static void
-settime(struct tm *time)
+static int
+glyph_indexof(char c)
 {
-	static char buf[16];
-	strftime(buf, sizeof buf, format, time);
-	text_layer_set_text(layer.time, buf);
+	if (c >= '0' && c <= '9')
+		return c - '0' + 10;
+	if (c >= 'A' && c <= 'Z')
+		return c - 'A' + 20;
+	if (c >= 'a' && c <= 'z')
+		return c - 'a' + 20;
+	switch (c) {
+	case ' ': return 46;
+	case '%': return 47;
+	case '#': return 48;
+	}
+	return 46;	// Default to space
 }
 
 static void
-setdate(struct tm *time)
+Background(Layer *layer, GContext *ctx)
 {
-	static char buf[16];
-	strftime(buf, sizeof buf, config.fmt, time);
-	text_layer_set_text(layer.date, buf);
-}
+	static char buf[32];
+	GRect bounds, rect0, rect1;
+	time_t timestamp;
+	struct tm *tm;
+	int i, h, m, g;
 
-static void
-Background(Layer *layer, GContext *gc)
-{
-	GRect bounds;
+	if ((timestamp = time(0)) < 0)
+		return;
+
+	if (!(tm = localtime(&timestamp)))
+		return;
+
+	h = tm->tm_hour;
+	m = tm->tm_min;
+
+	if (!clock_is_24h_style() && h > 12)
+		h -= 12;
+
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_fill_color(gc, config.bg);
-	graphics_fill_rect(gc, bounds, 0, GCornerNone);
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	// Hour
+
+	g = h % 10;
+	rect0 = gbitmap_get_bounds(glyph[g]);
+	rect0.origin.x = bounds.size.w - MARGIN - rect0.size.w;
+	rect0.origin.y = bounds.origin.y + MARGIN;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
+
+	g = h / 10;
+	if (g) {
+		rect1 = gbitmap_get_bounds(glyph[g]);
+		rect1.origin.x = rect0.origin.x - MARGIN - rect1.size.w;
+		rect0.origin.y = bounds.origin.y + MARGIN;
+		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect1);
+	}
+
+	// Minutes
+
+	g = m % 10;
+	rect0 = gbitmap_get_bounds(glyph[g]);
+	rect0.origin.x = bounds.size.w - MARGIN - rect0.size.w;
+	rect0.origin.y = bounds.origin.y + MARGIN*2 + rect0.size.h;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
+
+	g = m / 10;
+	if (g) {
+		rect1 = gbitmap_get_bounds(glyph[g]);
+		rect1.origin.x = rect0.origin.x - MARGIN - rect1.size.w;
+		rect1.origin.y = bounds.origin.y + MARGIN*2 + rect1.size.h;
+		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect1);
+	}
+
+	// Date
+
+	strftime(buf, sizeof buf, "%A %d", tm);
+	rect0.origin.x = MARGIN + (17 - strlen(buf)) * 8;
+	rect0.origin.y += rect0.size.h + MARGIN;
+	rect0.size.w = 8;
+	rect0.size.h = 8;
+
+	for (i=0; i < 17 && buf[i]; i++) {
+		g = glyph_indexof(buf[i]);
+		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
+		rect0.origin.x += rect0.size.w;
+	}
 }
 
 static void
@@ -52,50 +108,34 @@ Load(Window *win)
 
 	wl = window_get_root_layer(win);
 	rect = layer_get_bounds(wl);
-	format = clock_is_24h_style() ? "%H:%M" : "%I:%M %p";
 
-	// Background
-	layer.bg = layer_create(rect);
-	layer_set_update_proc(layer.bg, Background);
-	layer_add_child(wl, layer.bg);
-
-	// Time
-	layer.time = text_layer_create(rect);
-	text_layer_set_background_color(layer.time, GColorClear);
-	text_layer_set_text_color(layer.time, GColorBlack);
-	text_layer_set_font(layer.time, font0);
-	text_layer_set_text_alignment(layer.time, GTextAlignmentCenter);
-	layer_add_child(layer.bg, text_layer_get_layer(layer.time));
-
-	// Date
-	rect.origin.y += 24;
-	layer.date = text_layer_create(rect);
-	text_layer_set_background_color(layer.date, GColorClear);
-	text_layer_set_text_color(layer.date, GColorBlack);
-	text_layer_set_font(layer.date, font1);
-	text_layer_set_text_alignment(layer.date, GTextAlignmentCenter);
-	layer_add_child(layer.bg, text_layer_get_layer(layer.date));
+	background = layer_create(rect);
+	layer_set_update_proc(background, Background);
+	layer_add_child(wl, background);
 }
 
 static void
 Unload(Window *win)
 {
 	(void)win;
-	layer_destroy(layer.bg);
-	text_layer_destroy(layer.time);
-	text_layer_destroy(layer.date);
+	layer_destroy(background);
 }
 
 static void
 Tick(struct tm *time, TimeUnits change)
 {
+	// TODO(irek): I will have separate leyer for each of those
+	// but right now it will look stupid.
+	if (change & MINUTE_UNIT)
+		layer_mark_dirty(background);
+	if (change & HOUR_UNIT)
+		layer_mark_dirty(background);
 	if (change & DAY_UNIT)
-		setdate(time);
-	settime(time);
+		layer_mark_dirty(background);
 }
 
 static void
-configure(void)
+configure()
 {
 	time_t now;
 
@@ -104,7 +144,7 @@ configure(void)
 		strcpy(config.fmt, PBL_IF_ROUND_ELSE("%a %d", "%A %d"));
 
 	// Update
-	layer_mark_dirty(layer.bg);
+	layer_mark_dirty(background);
 	now = time(0);
 	Tick(localtime(&now), DAY_UNIT);
 }
@@ -129,15 +169,67 @@ Msg(DictionaryIterator *di, void *ctx)
 }
 
 int
-main(void)
+main()
 {
 	Window *win;
 	WindowHandlers wh;
 	time_t now;
 
 	// Resources
-	font0 = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM);
-	font1 = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+	glyphs = gbitmap_create_with_resource(RESOURCE_ID_GLYPHS);
+	// Big numbers
+	glyph[0] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 5, 60, 70));
+	glyph[1] = gbitmap_create_as_sub_bitmap(glyphs, GRect(70, 5, 30, 70));
+	glyph[2] = gbitmap_create_as_sub_bitmap(glyphs, GRect(105, 5, 60, 70));
+	glyph[3] = gbitmap_create_as_sub_bitmap(glyphs, GRect(170, 5, 60, 70));
+	glyph[4] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 80, 45, 70));
+	glyph[5] = gbitmap_create_as_sub_bitmap(glyphs, GRect(55, 80, 60, 70));
+	glyph[6] = gbitmap_create_as_sub_bitmap(glyphs, GRect(120, 80, 60, 70));
+	glyph[7] = gbitmap_create_as_sub_bitmap(glyphs, GRect(185, 80, 45, 70));
+	glyph[8] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 155, 60, 70));
+	glyph[9] = gbitmap_create_as_sub_bitmap(glyphs, GRect(70, 155, 60, 70));
+	// Small numbers
+	glyph[10] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 243, 8, 8));
+	glyph[11] = gbitmap_create_as_sub_bitmap(glyphs, GRect(13, 243, 8, 8));
+	glyph[12] = gbitmap_create_as_sub_bitmap(glyphs, GRect(21, 243, 8, 8));
+	glyph[13] = gbitmap_create_as_sub_bitmap(glyphs, GRect(29, 243, 8, 8));
+	glyph[14] = gbitmap_create_as_sub_bitmap(glyphs, GRect(37, 243, 8, 8));
+	glyph[15] = gbitmap_create_as_sub_bitmap(glyphs, GRect(45, 243, 8, 8));
+	glyph[16] = gbitmap_create_as_sub_bitmap(glyphs, GRect(53, 243, 8, 8));
+	glyph[17] = gbitmap_create_as_sub_bitmap(glyphs, GRect(61, 243, 8, 8));
+	glyph[18] = gbitmap_create_as_sub_bitmap(glyphs, GRect(69, 243, 8, 8));
+	glyph[19] = gbitmap_create_as_sub_bitmap(glyphs, GRect(77, 243, 8, 8));
+	// Small capital letters
+	glyph[20] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 230, 8, 8));
+	glyph[21] = gbitmap_create_as_sub_bitmap(glyphs, GRect(13, 230, 8, 8));
+	glyph[22] = gbitmap_create_as_sub_bitmap(glyphs, GRect(21, 230, 8, 8));
+	glyph[23] = gbitmap_create_as_sub_bitmap(glyphs, GRect(29, 230, 8, 8));
+	glyph[24] = gbitmap_create_as_sub_bitmap(glyphs, GRect(37, 230, 8, 8));
+	glyph[25] = gbitmap_create_as_sub_bitmap(glyphs, GRect(45, 230, 8, 8));
+	glyph[26] = gbitmap_create_as_sub_bitmap(glyphs, GRect(53, 230, 8, 8));
+	glyph[27] = gbitmap_create_as_sub_bitmap(glyphs, GRect(61, 230, 8, 8));
+	glyph[28] = gbitmap_create_as_sub_bitmap(glyphs, GRect(69, 230, 8, 8));
+	glyph[29] = gbitmap_create_as_sub_bitmap(glyphs, GRect(77, 230, 8, 8));
+	glyph[30] = gbitmap_create_as_sub_bitmap(glyphs, GRect(85, 230, 8, 8));
+	glyph[31] = gbitmap_create_as_sub_bitmap(glyphs, GRect(93, 230, 8, 8));
+	glyph[32] = gbitmap_create_as_sub_bitmap(glyphs, GRect(101, 230, 8, 8));
+	glyph[33] = gbitmap_create_as_sub_bitmap(glyphs, GRect(109, 230, 8, 8));
+	glyph[34] = gbitmap_create_as_sub_bitmap(glyphs, GRect(117, 230, 8, 8));
+	glyph[35] = gbitmap_create_as_sub_bitmap(glyphs, GRect(125, 230, 8, 8));
+	glyph[36] = gbitmap_create_as_sub_bitmap(glyphs, GRect(133, 230, 8, 8));
+	glyph[37] = gbitmap_create_as_sub_bitmap(glyphs, GRect(141, 230, 8, 8));
+	glyph[38] = gbitmap_create_as_sub_bitmap(glyphs, GRect(149, 230, 8, 8));
+	glyph[39] = gbitmap_create_as_sub_bitmap(glyphs, GRect(157, 230, 8, 8));
+	glyph[40] = gbitmap_create_as_sub_bitmap(glyphs, GRect(165, 230, 8, 8));
+	glyph[41] = gbitmap_create_as_sub_bitmap(glyphs, GRect(173, 230, 8, 8));
+	glyph[42] = gbitmap_create_as_sub_bitmap(glyphs, GRect(181, 230, 8, 8));
+	glyph[43] = gbitmap_create_as_sub_bitmap(glyphs, GRect(189, 230, 8, 8));
+	glyph[44] = gbitmap_create_as_sub_bitmap(glyphs, GRect(197, 230, 8, 8));
+	glyph[45] = gbitmap_create_as_sub_bitmap(glyphs, GRect(205, 230, 8, 8));
+	// Small special characters
+	glyph[46] = gbitmap_create_as_sub_bitmap(glyphs, GRect(85, 243, 8, 8));
+	glyph[47] = gbitmap_create_as_sub_bitmap(glyphs, GRect(93, 243, 8, 8));
+	glyph[48] = gbitmap_create_as_sub_bitmap(glyphs, GRect(101, 243, 8, 8));
 
 	// Window
 	win = window_create();
@@ -165,5 +257,6 @@ main(void)
 	// Main
 	app_event_loop();
 	window_destroy(win);
+	gbitmap_destroy(glyphs);
 	return 0;
 }
