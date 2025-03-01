@@ -103,6 +103,33 @@ to very small font.  With that the feeling of size will be emphasized.
 
 ![First test of design on Pebble time](picture/01.jpeg)
 
+It took me long time to figure out the pixel perfect grid that would
+fit 2 rows of big numbers that are build from repeated modular pieces
+of the same size, and with third row for smaller moonspace font that
+would fix perfectly from left to right and all margins between big and
+small font and screen borders are the same.  So here is the recipe for
+my perfect grid:
+
+- 5px margin from screen borders which is as minimal as it can be to
+  avoid getting too close to screen rounded corners
+- 5px of space between first, second and third rows of text
+- 70px of height for first 2 rows
+- 5x5px blocks are used to build big numbers
+- 5px of space between big number lines
+- 8px of height for last row
+- 134px of width in each row which is perfect for small monospace font
+  in third row making it possible to fix exactly 17 characters that are
+  6px wide and have 2px space between letters
+
+It's perfect.  I had similar design at some point that looked almost
+exactly the same.  But spaces between number, margins and letters where
+very different.  With this new grid fonts feel more solid.  It's all
+about the feeling.
+
+> Don't think, feel! It is like a finger pointing away to the moon.
+> Don't concentrate on the finger or you will miss all that heavenly
+> glory.  Do you understand? - Bruce Lee
+
 
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
