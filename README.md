@@ -64,6 +64,17 @@ ignored.  With that I don't have to add extra conditions.
 Anyhow, I'm more than ready for Hackathon.
 
 
+2025.03.01 Sat 11:31 The time has come
+--------------------------------------
+
+First day of hackathon.  I will focus on design.  Like last time I'm
+planning on testing ideas by making a simple watchface that display
+single BMP image.  That way I can look at watchface on the watch and
+not only in Gimp which makes a huge difference.
+
+Yes this time I'm not using Inkscape, we are not friends anymore </3
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/
