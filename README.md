@@ -150,7 +150,7 @@ some programming now.
 Well, that was fast.  I just implemented the most basic version of
 watchface using glyphs atlas.  Both fonts works as expected.
 
-![First working version of watchface on Pebble time](picture/03.jpeg)
+![First working version of watchface on Pebble Time](picture/03.jpeg)
 
 Time for break.  Here is a rough list of things to do next:
 
@@ -160,6 +160,32 @@ Time for break.  Here is a rough list of things to do next:
 4. Refactor, use multiple layers, avoid numbers.
 5. Animations.
 6. Icon.
+
+
+2025.03.01 Sat 20:53 Now, it is balanced
+----------------------------------------
+
+After using this watchface I realized that empty space on the left is
+problematic.  It's there on purpose, give a space to breath and it's a
+result of decision to make main font non monospace.  Proportional
+numbers are more readable.  But I can't explain that to everyone who
+see this watchface.  The design must defend itself and right now to
+regular user the left side looks strange.  Everything is on the right
+side making it heavier.  I need balance.
+
+I tried to add some text using small font but even tho it's small it
+was too big for the little space that is on the left edge when clock
+shows time like 22:22.  So I decided to try with another, even smaller
+font.  And I love it.  This is truly a challenge in typography.  The
+tiny font still has some unique character and it's possible to read,
+but it's not there for everyday practical reasons.  It's there to
+balance the design.
+
+![New design with tiny text on the left edge](picture/04.png)
+![New design running on Pebble Time](picture/05.jpeg)
+
+Now I'm satisfied with the composition.  I can proceed to work on
+settings and refactor.
 
 
 [Rebble]: http://rebble.io/
