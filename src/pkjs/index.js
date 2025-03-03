@@ -49,7 +49,7 @@ new Clay([
       {
         "id": "bottom-select",
         "type": "select",
-        "label": "Pressets",
+        "label": "Presets",
         "defaultValue": "%A %d",
         "options": [
           { "value": "",         "label": "NOTHING" },
@@ -86,7 +86,7 @@ new Clay([
       {
         "id": "left-select",
         "type": "select",
-        "label": "Pressets",
+        "label": "Presets",
         "defaultValue": "%B %Y",
         "options": [
           { "value": "",         "label": "NOTHING" },
