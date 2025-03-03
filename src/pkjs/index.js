@@ -23,15 +23,22 @@ new Clay([
         "type": "color",
         "messageKey": "BGCOLOR",
         "label": "Background",
-        "allowGray": true,
+        "allowGray": false,
         "defaultValue": "ffffff"
       },
       {
         "type": "color",
         "messageKey": "FGCOLOR",
         "label": "Foreground",
-        "allowGray": true,
+        "allowGray": false,
         "defaultValue": "000000"
+      },
+      {
+        "type": "color",
+        "messageKey": "LEVELCOLOR",
+        "label": "Battery level",
+        "capabilities": ["COLOR"],
+        "defaultValue": "FF0000"
       }
     ]
   },

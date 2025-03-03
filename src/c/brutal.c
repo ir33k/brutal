@@ -14,7 +14,7 @@ enum font {
 enum vibe { SILENT, SHORT, LONG, DOUBLE };
 
 static struct {
-	GColor bg, fg;
+	GColor bg, fg, level;
 	char left[32], bottom[32];
 	enum vibe bt_on, bt_off, each_hour;
 } config;
@@ -22,6 +22,12 @@ static struct {
 static Layer *body, *hours, *minutes, *left, *bottom;
 static GBitmap *glyphs, *glyph[256]={};
 static GColor palette[2];
+
+int
+normal(int v, int vmin, int vmax, int min, int max)
+{
+	return ((float)(v-vmin) / (float)(vmax-vmin)) * (float)(max-min) + min;
+}
 
 static struct tm *
 now()
@@ -74,9 +80,18 @@ static void
 Body(Layer *layer, GContext *ctx)
 {
 	GRect bounds;
+	BatteryChargeState battery;
+	int percent;
 
 	bounds = layer_get_bounds(layer);
 	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	battery = battery_state_service_peek();
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "batter: %d", battery.charge_percent);
+	percent = normal(100 - battery.charge_percent, 0, 100, 0, bounds.size.h);
+	bounds.size.h = percent;
+	graphics_context_set_fill_color(ctx, config.level);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 }
 
@@ -89,8 +104,7 @@ Hours(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_fill_color(ctx, config.bg);
-	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	tm = now();
 	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
@@ -123,8 +137,7 @@ Minutes(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_fill_color(ctx, config.bg);
-	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	tm = now();
 	strftime(buf, sizeof buf, "%M", tm);
@@ -155,8 +168,7 @@ Left(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_fill_color(ctx, config.bg);
-	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	if (config.left[0] == 0)
 		return;
@@ -164,8 +176,14 @@ Left(Layer *layer, GContext *ctx)
 	tm = now();
 	strftime(buf, sizeof buf, config.left, tm);
 
-	rect.origin.x = bounds.origin.x;
-	rect.origin.y = bounds.origin.y;
+	bounds.size.h = strlen(buf) * 7;
+#if defined(PBL_BW)
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+#endif
+
+	rect.origin.x = bounds.origin.x +1;
+	rect.origin.y = bounds.origin.y +1;
 	rect.size.w = 4;
 	rect.size.h = 5;
 
@@ -186,8 +204,7 @@ Bottom(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_fill_color(ctx, config.bg);
-	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	if (config.bottom[0] == 0)
 		return;
@@ -195,7 +212,14 @@ Bottom(Layer *layer, GContext *ctx)
 	tm = now();
 	strftime(buf, sizeof buf, config.bottom, tm);
 
-	rect.origin.x = bounds.origin.x + ((sizeof buf -1) - strlen(buf)) * 8;
+	bounds.origin.x = ((sizeof buf -1) - strlen(buf)) * 8;
+	bounds.size.w = strlen(buf) * 8 - 2;
+#if defined(PBL_BW)
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+#endif
+
+	rect.origin.x = bounds.origin.x;
 	rect.origin.y = bounds.origin.y;
 	rect.size.w = 6;
 	rect.size.h = 8;
@@ -236,9 +260,9 @@ Load(Window *win)
 	layer_set_update_proc(minutes, Minutes);
 	layer_add_child(body, minutes);
 
-	rect.origin.x = MARGIN;
-	rect.origin.y = MARGIN;
-	rect.size.w = 4;
+	rect.origin.x = MARGIN -1;
+	rect.origin.y = MARGIN -1;
+	rect.size.w = 6;
 	rect.size.h = 70*2 + MARGIN;
 	left = layer_create(rect);
 	layer_set_update_proc(left, Left);
@@ -288,6 +312,13 @@ Bluetooth(bool connected)
 }
 
 static void
+Battery(BatteryChargeState state)
+{
+	(void)state;
+	layer_mark_dirty(body);
+}
+
+static void
 configure()
 {
 	connection_service_unsubscribe();
@@ -295,7 +326,7 @@ configure()
 		connection_service_subscribe((ConnectionHandlers){ Bluetooth, 0 });
 
 	palette[0] = config.fg;
-	palette[1] = config.bg;	
+	palette[1] = GColorClear;
 
 	layer_mark_dirty(body);
 }
@@ -311,6 +342,9 @@ Msg(DictionaryIterator *di, void *ctx)
 
 	if ((tuple = dict_find(di, MESSAGE_KEY_FGCOLOR)))
 		config.fg = GColorFromHEX(tuple->value->int32);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_LEVELCOLOR)))
+		config.level = GColorFromHEX(tuple->value->int32);
 
 	if ((tuple = dict_find(di, MESSAGE_KEY_LEFT)))
 		strcpy(config.left, tuple->value->cstring);
@@ -456,6 +490,7 @@ main()
 	// Config
 	config.bg = GColorWhite;
 	config.fg = GColorBlack;
+	config.level = PBL_IF_BW_ELSE(GColorLightGray, GColorRed);
 	strcpy(config.left, "%B %Y");
 	strcpy(config.bottom, "%A %d");
 	config.bt_on = SILENT;

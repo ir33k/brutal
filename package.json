@@ -29,6 +29,7 @@
     "messageKeys": [
       "BGCOLOR",
       "FGCOLOR",
+      "LEVELCOLOR",
       "LEFT",
       "BOTTOM",
       "VIBEBTON",

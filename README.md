@@ -188,6 +188,24 @@ Now I'm satisfied with the composition.  I can proceed to work on
 settings and refactor.
 
 
+2025.03.03 Mon 18:11 Illusion of choice
+---------------------------------------
+
+I've made few improvements to fonts glyphs.  Code was heavily
+refactored.  Watchface has now multiple layers.  But most importantly
+I added configurations.  User can choose colors, date formats and
+vibrations for Bluetooth disconnect event, Bluetooth connect event and
+on each hour.
+
+Another addition is the second background color showing battery
+percent.  I tried many design ideas.  I rly liked my explorations of
+different background color just under the big numbers.  But even tho I
+liked that in Gimp, it didn't look good at all on watch.  So I ended
+up with most basic solution.  I think that it looks excellent.
+
+![New design running on Pebble Time](picture/06.jpeg)
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/
