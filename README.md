@@ -203,7 +203,7 @@ different background color just under the big numbers.  But even tho I
 liked that in Gimp, it didn't look good at all on watch.  So I ended
 up with most basic solution.  I think that it looks excellent.
 
-![New design running on Pebble Time](picture/06.jpeg)
+![Rectangle in background as battery percentage](picture/06.jpeg)
 
 
 2025.03.03 Mon 18:59 I lied!
@@ -217,6 +217,16 @@ fonts to solve this issue but then watchface looked super ugly.
 
 With that, I decided to terminate this feature.  But it will be back
 as text in either left or bottom text area.
+
+
+2025.03.03 Mon 20:20
+--------------------
+
+I really like how the tiny font looks like.  I took few better
+pictures of white on black color combination with custom texts.
+
+![Very close photo of tiny font](picture/07.png)
+![High resolution photo of white on black font](picture/08.png)
 
 
 [Rebble]: http://rebble.io/
