@@ -8,11 +8,23 @@ static struct {
 	char fmt[16];
 } config;
 
-static Layer *background;
-static GColor palette[2];
+static Layer *background, *hours, *minutes, *bottom, *left;
 static GBitmap *glyphs, *glyph[128];
+static GColor palette[2];
 
-// Font 8x6
+static struct tm *
+now()
+{
+	time_t timestamp;
+	struct tm *tm;
+
+	/* NOTE(irek): Pebble OS assumes that this never fail */
+	timestamp = time(0);
+	tm = localtime(&timestamp);
+
+	return tm;
+}
+
 static int
 glyph_small_indexof(char c)
 {
@@ -29,7 +41,6 @@ glyph_small_indexof(char c)
 	return 46;	// Default to space
 }
 
-// Font 4x5
 static int
 glyph_tiny_indexof(char c)
 {
@@ -48,85 +59,129 @@ glyph_tiny_indexof(char c)
 static void
 Background(Layer *layer, GContext *ctx)
 {
-	static char bottom_text[18];	// Fits 17 characters
-	static char left_text[21];	// Fits 20 characters
-	GRect bounds, rect0, rect1;
-	time_t timestamp;
+	GRect bounds;
+
+	bounds = layer_get_bounds(layer);
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+}
+
+static void
+Hours(Layer *layer, GContext *ctx)
+{
+	GRect bounds, rect, tmp;
 	struct tm *tm;
-	int i, h, m, g;
-
-	if ((timestamp = time(0)) < 0)
-		return;
-
-	if (!(tm = localtime(&timestamp)))
-		return;
-
-	h = tm->tm_hour;
-	m = tm->tm_min;
-
-	if (!clock_is_24h_style() && h > 12)
-		h -= 12;
+	int h, g;
 
 	bounds = layer_get_bounds(layer);
 	graphics_context_set_fill_color(ctx, config.bg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
-	// Hour
+	tm = now();
+	h = tm->tm_hour;
+
+	if (!clock_is_24h_style() && h > 12)
+		h -= 12;
 
 	g = h % 10;
-	rect0 = gbitmap_get_bounds(glyph[g]);
-	rect0.origin.x = bounds.size.w - MARGIN - rect0.size.w;
-	rect0.origin.y = bounds.origin.y + MARGIN;
-	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
+	tmp = gbitmap_get_bounds(glyph[g]);
+	rect.size.w = tmp.size.w;
+	rect.size.h = tmp.size.h;
+	rect.origin.x = bounds.size.w - tmp.size.w;
+	rect.origin.y = bounds.origin.y;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect);
 
 	g = h / 10;
-	if (g) {
-		rect1 = gbitmap_get_bounds(glyph[g]);
-		rect1.origin.x = rect0.origin.x - MARGIN - rect1.size.w;
-		rect0.origin.y = bounds.origin.y + MARGIN;
-		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect1);
+	if (!g)
+		return;
+
+	tmp = gbitmap_get_bounds(glyph[g]);
+	rect.origin.x -= tmp.size.w + MARGIN;
+	rect.size.w = tmp.size.w;
+	rect.size.h = tmp.size.h;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect);
+}
+
+static void
+Minutes(Layer *layer, GContext *ctx)
+{
+	GRect bounds, rect, tmp;
+	struct tm *tm;
+	int g;
+
+	bounds = layer_get_bounds(layer);
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	tm = now();
+
+	g = tm->tm_min % 10;
+	tmp = gbitmap_get_bounds(glyph[g]);
+	rect.size.w = tmp.size.w;
+	rect.size.h = tmp.size.h;
+	rect.origin.x = bounds.size.w - tmp.size.w;
+	rect.origin.y = bounds.origin.y;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect);
+
+	g = tm->tm_min / 10;
+	tmp = gbitmap_get_bounds(glyph[g]);
+	rect.origin.x -= tmp.size.w + MARGIN;
+	rect.size.w = tmp.size.w;
+	rect.size.h = tmp.size.h;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect);
+}
+
+static void
+Bottom(Layer *layer, GContext *ctx)
+{
+	static char buf[18];	// Fits 17 characters
+	GRect bounds, rect;
+	struct tm *tm;
+	int i, g;
+
+	bounds = layer_get_bounds(layer);
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	tm = now();
+
+	strftime(buf, sizeof buf, "%A %d", tm);
+	rect.origin.x = bounds.origin.x + ((sizeof buf -1) - strlen(buf)) * 8;
+	rect.origin.y = bounds.origin.y;
+	rect.size.w = 6;
+	rect.size.h = 8;
+
+	for (i=0; buf[i]; i++) {
+		g = glyph_small_indexof(buf[i]);
+		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect);
+		rect.origin.x += rect.size.w +2;
 	}
+}
 
-	// Minutes
+static void
+Left(Layer *layer, GContext *ctx)
+{
+	static char buf[21];	// Fits 20 characters
+	GRect bounds, rect;
+	struct tm *tm;
+	int i, g;
 
-	g = m % 10;
-	rect0 = gbitmap_get_bounds(glyph[g]);
-	rect0.origin.x = bounds.size.w - MARGIN - rect0.size.w;
-	rect0.origin.y = bounds.origin.y + MARGIN*2 + rect0.size.h;
-	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
+	bounds = layer_get_bounds(layer);
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
-	g = m / 10;
-	rect1 = gbitmap_get_bounds(glyph[g]);
-	rect1.origin.x = rect0.origin.x - MARGIN - rect1.size.w;
-	rect1.origin.y = bounds.origin.y + MARGIN*2 + rect1.size.h;
-	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect1);
+	tm = now();
 
-	// Bottom text
+	strftime(buf, sizeof buf, "%B %Y", tm);
+	rect.origin.x = bounds.origin.x;
+	rect.origin.y = bounds.origin.y;
+	rect.size.w = 4;
+	rect.size.h = 5;
 
-	strftime(bottom_text, sizeof bottom_text, "%A %d", tm);
-	rect0.origin.x = MARGIN + (17 - strlen(bottom_text)) * 8;
-	rect0.origin.y += rect0.size.h + MARGIN;
-	rect0.size.w = 6;
-	rect0.size.h = 8;
-
-	for (i=0; bottom_text[i]; i++) {
-		g = glyph_small_indexof(bottom_text[i]);
-		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
-		rect0.origin.x += rect0.size.w +2;
-	}
-
-	// Left text
-
-	strftime(left_text, sizeof left_text, "%B %Y", tm);
-	rect0.origin.x = MARGIN;
-	rect0.origin.y = MARGIN;
-	rect0.size.w = 4;
-	rect0.size.h = 5;
-
-	for (i=0; left_text[i]; i++) {
-		g = glyph_tiny_indexof(left_text[i]);
-		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
-		rect0.origin.y += rect0.size.h +2;
+	for (i=0; buf[i]; i++) {
+		g = glyph_tiny_indexof(buf[i]);
+		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect);
+		rect.origin.y += rect.size.h +2;
 	}
 }
 
@@ -134,14 +189,43 @@ static void
 Load(Window *win)
 {
 	Layer *wl;
-	GRect rect;
+	GRect bounds, rect;
 
 	wl = window_get_root_layer(win);
-	rect = layer_get_bounds(wl);
+	bounds = layer_get_bounds(wl);
 
-	background = layer_create(rect);
+	background = layer_create(bounds);
 	layer_set_update_proc(background, Background);
 	layer_add_child(wl, background);
+
+	rect.origin.x = bounds.origin.x + MARGIN + 4 + MARGIN;
+	rect.origin.y = bounds.origin.y + MARGIN;
+	rect.size.w = bounds.size.w - rect.origin.x - MARGIN;
+	rect.size.h = 70;
+	hours = layer_create(rect);
+	layer_set_update_proc(hours, Hours);
+	layer_add_child(background, hours);
+
+	rect.origin.y += rect.size.h + MARGIN;
+	minutes = layer_create(rect);
+	layer_set_update_proc(minutes, Minutes);
+	layer_add_child(background, minutes);
+
+	rect.origin.x = MARGIN;
+	rect.origin.y += rect.size.h + MARGIN;
+	rect.size.h = 8;
+	rect.size.w = bounds.size.w - MARGIN*2;
+	bottom = layer_create(rect);
+	layer_set_update_proc(bottom, Bottom);
+	layer_add_child(background, bottom);
+
+	rect.origin.x = MARGIN;
+	rect.origin.y = MARGIN;
+	rect.size.h = bounds.size.h - MARGIN*3 - 8;
+	rect.size.w = 4;
+	left = layer_create(rect);
+	layer_set_update_proc(left, Left);
+	layer_add_child(background, left);
 }
 
 static void
@@ -154,14 +238,16 @@ Unload(Window *win)
 static void
 Tick(struct tm *time, TimeUnits change)
 {
-	// TODO(irek): I will have separate leyer for each of those
-	// but right now it will look stupid.
 	if (change & MINUTE_UNIT)
-		layer_mark_dirty(background);
+		layer_mark_dirty(minutes);
+
 	if (change & HOUR_UNIT)
-		layer_mark_dirty(background);
-	if (change & DAY_UNIT)
-		layer_mark_dirty(background);
+		layer_mark_dirty(hours);
+
+	if (change & DAY_UNIT) {
+		layer_mark_dirty(bottom);
+		layer_mark_dirty(left);
+	}
 }
 
 static void
