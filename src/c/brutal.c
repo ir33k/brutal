@@ -3,7 +3,6 @@
 #define CONFKEY 1
 #define MARGIN 5
 
-#define ASCII_RANGE_NUMBERS   ('9' - '0')
 #define ASCII_RANGE_PRINTABLE ('~' - ' ')
 
 enum font {
@@ -12,13 +11,16 @@ enum font {
 	BIG   = (0 - '0' + ASCII_RANGE_PRINTABLE * 2),
 };
 
+enum vibe { SILENT, SHORT, LONG, DOUBLE };
+
 static struct {
 	GColor bg, fg;
-	char fmt[16];
+	char left[32], bottom[32];
+	enum vibe bt_on, bt_off, each_hour;
 } config;
 
-static Layer *background, *hours, *minutes, *bottom, *left;
-static GBitmap *glyphs, *glyph[512];
+static Layer *body, *hours, *minutes, *left, *bottom;
+static GBitmap *glyphs, *glyph[256]={};
 static GColor palette[2];
 
 static struct tm *
@@ -58,7 +60,18 @@ glyph_get(enum font font, char c)
 }
 
 static void
-Background(Layer *layer, GContext *ctx)
+vibe(enum vibe type)
+{
+	switch (type) {
+	case SILENT: break;
+	case SHORT:  vibes_short_pulse();  break;
+	case LONG:   vibes_long_pulse();   break;
+	case DOUBLE: vibes_double_pulse(); break;
+	}
+}
+
+static void
+Body(Layer *layer, GContext *ctx)
 {
 	GRect bounds;
 
@@ -133,34 +146,6 @@ Minutes(Layer *layer, GContext *ctx)
 }
 
 static void
-Bottom(Layer *layer, GContext *ctx)
-{
-	static char buf[18];
-	GRect bounds, rect;
-	struct tm *tm;
-	int i;
-	GBitmap *g;
-
-	bounds = layer_get_bounds(layer);
-	graphics_context_set_fill_color(ctx, config.bg);
-	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-
-	tm = now();
-	strftime(buf, sizeof buf, "%A %d", tm);
-
-	rect.origin.x = bounds.origin.x + ((sizeof buf -1) - strlen(buf)) * 8;
-	rect.origin.y = bounds.origin.y;
-	rect.size.w = 6;
-	rect.size.h = 8;
-
-	for (i=0; buf[i]; i++) {
-		g = glyph_get(SMALL, buf[i]);
-		graphics_draw_bitmap_in_rect(ctx, g, rect);
-		rect.origin.x += rect.size.w +2;
-	}
-}
-
-static void
 Left(Layer *layer, GContext *ctx)
 {
 	static char buf[21];
@@ -173,8 +158,11 @@ Left(Layer *layer, GContext *ctx)
 	graphics_context_set_fill_color(ctx, config.bg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
+	if (config.left[0] == 0)
+		return;
+
 	tm = now();
-	strftime(buf, sizeof buf, "%B %Y", tm);
+	strftime(buf, sizeof buf, config.left, tm);
 
 	rect.origin.x = bounds.origin.x;
 	rect.origin.y = bounds.origin.y;
@@ -189,6 +177,37 @@ Left(Layer *layer, GContext *ctx)
 }
 
 static void
+Bottom(Layer *layer, GContext *ctx)
+{
+	static char buf[18];
+	GRect bounds, rect;
+	struct tm *tm;
+	int i;
+	GBitmap *g;
+
+	bounds = layer_get_bounds(layer);
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	if (config.bottom[0] == 0)
+		return;
+
+	tm = now();
+	strftime(buf, sizeof buf, config.bottom, tm);
+
+	rect.origin.x = bounds.origin.x + ((sizeof buf -1) - strlen(buf)) * 8;
+	rect.origin.y = bounds.origin.y;
+	rect.size.w = 6;
+	rect.size.h = 8;
+
+	for (i=0; buf[i]; i++) {
+		g = glyph_get(SMALL, buf[i]);
+		graphics_draw_bitmap_in_rect(ctx, g, rect);
+		rect.origin.x += rect.size.w +2;
+	}
+}
+
+static void
 Load(Window *win)
 {
 	Layer *wl;
@@ -197,45 +216,52 @@ Load(Window *win)
 	wl = window_get_root_layer(win);
 	bounds = layer_get_bounds(wl);
 
-	background = layer_create(bounds);
-	layer_set_update_proc(background, Background);
-	layer_add_child(wl, background);
+	body = layer_create(bounds);
+	layer_set_update_proc(body, Body);
+	layer_add_child(wl, body);
 
-	rect.origin.x = bounds.origin.x + MARGIN + 4 + MARGIN;
-	rect.origin.y = bounds.origin.y + MARGIN;
-	rect.size.w = bounds.size.w - rect.origin.x - MARGIN;
+	rect.origin.x = 4 + MARGIN*2;
+	rect.origin.y = MARGIN;
+	rect.size.w = bounds.size.w - MARGIN*3 - 4;
 	rect.size.h = 70;
 	hours = layer_create(rect);
 	layer_set_update_proc(hours, Hours);
-	layer_add_child(background, hours);
+	layer_add_child(body, hours);
 
-	rect.origin.y += rect.size.h + MARGIN;
+	rect.origin.x = 4 + MARGIN*2;
+	rect.origin.y = 70 + MARGIN*2;
+	rect.size.w = bounds.size.w - MARGIN*3 - 4;
+	rect.size.h = 70;
 	minutes = layer_create(rect);
 	layer_set_update_proc(minutes, Minutes);
-	layer_add_child(background, minutes);
+	layer_add_child(body, minutes);
 
 	rect.origin.x = MARGIN;
-	rect.origin.y += rect.size.h + MARGIN;
+	rect.origin.y = MARGIN;
+	rect.size.w = 4;
+	rect.size.h = 70*2 + MARGIN;
+	left = layer_create(rect);
+	layer_set_update_proc(left, Left);
+	layer_add_child(body, left);
+
+	rect.origin.x = MARGIN;
+	rect.origin.y = bounds.size.h - MARGIN - 8;
 	rect.size.h = 8;
 	rect.size.w = bounds.size.w - MARGIN*2;
 	bottom = layer_create(rect);
 	layer_set_update_proc(bottom, Bottom);
-	layer_add_child(background, bottom);
-
-	rect.origin.x = MARGIN;
-	rect.origin.y = MARGIN;
-	rect.size.h = bounds.size.h - MARGIN*3 - 8;
-	rect.size.w = 4;
-	left = layer_create(rect);
-	layer_set_update_proc(left, Left);
-	layer_add_child(background, left);
+	layer_add_child(body, bottom);
 }
 
 static void
 Unload(Window *win)
 {
 	(void)win;
-	layer_destroy(background);
+	layer_destroy(body);
+	layer_destroy(hours);
+	layer_destroy(minutes);
+	layer_destroy(left);
+	layer_destroy(bottom);
 }
 
 static void
@@ -244,8 +270,10 @@ Tick(struct tm *time, TimeUnits change)
 	if (change & MINUTE_UNIT)
 		layer_mark_dirty(minutes);
 
-	if (change & HOUR_UNIT)
+	if (change & HOUR_UNIT) {
 		layer_mark_dirty(hours);
+		vibe(config.each_hour);
+	}
 
 	if (change & DAY_UNIT) {
 		layer_mark_dirty(bottom);
@@ -254,22 +282,22 @@ Tick(struct tm *time, TimeUnits change)
 }
 
 static void
+Bluetooth(bool connected)
+{
+	vibe(connected ? config.bt_on : config.bt_off);
+}
+
+static void
 configure()
 {
-	// time_t now;
-
-	// Default date format
-	// if (config.fmt[0] == 0)
-	// 	strcpy(config.fmt, PBL_IF_ROUND_ELSE("%a %d", "%A %d"));
+	connection_service_unsubscribe();
+	if (config.bt_on || config.bt_off)
+		connection_service_subscribe((ConnectionHandlers){ Bluetooth, 0 });
 
 	palette[0] = config.fg;
 	palette[1] = config.bg;	
 
-	// Update
-	layer_mark_dirty(background);
-	// TODO(irek): Restore
-	// now = time(0);
-	// Tick(localtime(&now), DAY_UNIT);
+	layer_mark_dirty(body);
 }
 
 static void
@@ -284,8 +312,20 @@ Msg(DictionaryIterator *di, void *ctx)
 	if ((tuple = dict_find(di, MESSAGE_KEY_FGCOLOR)))
 		config.fg = GColorFromHEX(tuple->value->int32);
 
-	if ((tuple = dict_find(di, MESSAGE_KEY_DATE)))
-		strcpy(config.fmt, tuple->value->cstring);
+	if ((tuple = dict_find(di, MESSAGE_KEY_LEFT)))
+		strcpy(config.left, tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_BOTTOM)))
+		strcpy(config.bottom, tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_VIBEBTON)))
+		config.bt_on = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_VIBEBTOFF)))
+		config.bt_off = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_VIBEEACHHOUR)))
+		config.each_hour = atoi(tuple->value->cstring);
 
 	persist_write_data(CONFKEY, &config, sizeof config);
 	configure();
@@ -297,6 +337,7 @@ main()
 	Window *win;
 	WindowHandlers wh;
 	time_t now;
+	unsigned i;
 
 	// Resources
 	glyphs = gbitmap_create_with_resource(RESOURCE_ID_GLYPHS);
@@ -415,7 +456,11 @@ main()
 	// Config
 	config.bg = GColorWhite;
 	config.fg = GColorBlack;
-	config.fmt[0] = 0;
+	strcpy(config.left, "%B %Y");
+	strcpy(config.bottom, "%A %d");
+	config.bt_on = SILENT;
+	config.bt_off = SILENT;
+	config.each_hour = SILENT;
 	persist_read_data(CONFKEY, &config, sizeof config);
 	configure();
 	app_message_register_inbox_received(Msg);
@@ -423,7 +468,12 @@ main()
 
 	// Main
 	app_event_loop();
+
+	// Cleanup
 	window_destroy(win);
+	for (i=0; i < ARRAY_LENGTH(glyph); i++)
+		gbitmap_destroy(glyph[i]);
 	gbitmap_destroy(glyphs);
+
 	return 0;
 }

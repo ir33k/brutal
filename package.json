@@ -29,7 +29,11 @@
     "messageKeys": [
       "BGCOLOR",
       "FGCOLOR",
-      "DATE"
+      "LEFT",
+      "BOTTOM",
+      "VIBEBTON",
+      "VIBEBTOFF",
+      "VIBEEACHHOUR"
     ],
     "resources": {
       "media": [
