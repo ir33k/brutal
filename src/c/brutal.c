@@ -74,7 +74,6 @@ static void
 Body(Layer *layer, GContext *ctx)
 {
 	GRect bounds;
-	BatteryChargeState battery;
 	int percent;
 
 	bounds = layer_get_bounds(layer);
@@ -91,7 +90,6 @@ Hours(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	tm = now();
 	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
@@ -124,7 +122,6 @@ Minutes(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	tm = now();
 	strftime(buf, sizeof buf, "%M", tm);
@@ -155,7 +152,6 @@ Left(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	if (config.left[0] == 0)
 		return;
@@ -185,7 +181,6 @@ Bottom(Layer *layer, GContext *ctx)
 	GBitmap *g;
 
 	bounds = layer_get_bounds(layer);
-	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	if (config.bottom[0] == 0)
 		return;
@@ -286,13 +281,6 @@ Bluetooth(bool connected)
 }
 
 static void
-Battery(BatteryChargeState state)
-{
-	(void)state;
-	layer_mark_dirty(body);
-}
-
-static void
 configure()
 {
 	connection_service_unsubscribe();
@@ -300,7 +288,7 @@ configure()
 		connection_service_subscribe((ConnectionHandlers){ Bluetooth, 0 });
 
 	palette[0] = config.fg;
-	palette[1] = GColorClear;
+	palette[1] = config.bg;
 
 	layer_mark_dirty(body);
 }
