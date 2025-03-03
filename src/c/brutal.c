@@ -9,6 +9,7 @@ static struct {
 } config;
 
 static Layer *background;
+static GColor palette[2];
 static GBitmap *glyphs, *glyph[128];
 
 // Font 8x6
@@ -95,12 +96,10 @@ Background(Layer *layer, GContext *ctx)
 	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect0);
 
 	g = m / 10;
-	if (g) {
-		rect1 = gbitmap_get_bounds(glyph[g]);
-		rect1.origin.x = rect0.origin.x - MARGIN - rect1.size.w;
-		rect1.origin.y = bounds.origin.y + MARGIN*2 + rect1.size.h;
-		graphics_draw_bitmap_in_rect(ctx, glyph[g], rect1);
-	}
+	rect1 = gbitmap_get_bounds(glyph[g]);
+	rect1.origin.x = rect0.origin.x - MARGIN - rect1.size.w;
+	rect1.origin.y = bounds.origin.y + MARGIN*2 + rect1.size.h;
+	graphics_draw_bitmap_in_rect(ctx, glyph[g], rect1);
 
 	// Bottom text
 
@@ -168,16 +167,20 @@ Tick(struct tm *time, TimeUnits change)
 static void
 configure()
 {
-	time_t now;
+	// time_t now;
 
 	// Default date format
-	if (config.fmt[0] == 0)
-		strcpy(config.fmt, PBL_IF_ROUND_ELSE("%a %d", "%A %d"));
+	// if (config.fmt[0] == 0)
+	// 	strcpy(config.fmt, PBL_IF_ROUND_ELSE("%a %d", "%A %d"));
+
+	palette[0] = config.fg;
+	palette[1] = config.bg;	
 
 	// Update
 	layer_mark_dirty(background);
-	now = time(0);
-	Tick(localtime(&now), DAY_UNIT);
+	// TODO(irek): Restore
+	// now = time(0);
+	// Tick(localtime(&now), DAY_UNIT);
 }
 
 static void
@@ -208,17 +211,20 @@ main()
 
 	// Resources
 	glyphs = gbitmap_create_with_resource(RESOURCE_ID_GLYPHS);
+	gbitmap_set_palette(glyphs, palette, false);
+
 	// Font x70 numbers
-	glyph[0] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 5, 60, 70));
-	glyph[1] = gbitmap_create_as_sub_bitmap(glyphs, GRect(70, 5, 30, 70));
-	glyph[2] = gbitmap_create_as_sub_bitmap(glyphs, GRect(105, 5, 60, 70));
-	glyph[3] = gbitmap_create_as_sub_bitmap(glyphs, GRect(170, 5, 60, 70));
-	glyph[4] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 80, 45, 70));
-	glyph[5] = gbitmap_create_as_sub_bitmap(glyphs, GRect(55, 80, 60, 70));
-	glyph[6] = gbitmap_create_as_sub_bitmap(glyphs, GRect(120, 80, 60, 70));
-	glyph[7] = gbitmap_create_as_sub_bitmap(glyphs, GRect(185, 80, 45, 70));
-	glyph[8] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 155, 60, 70));
-	glyph[9] = gbitmap_create_as_sub_bitmap(glyphs, GRect(70, 155, 60, 70));
+	glyph[0] = gbitmap_create_as_sub_bitmap(glyphs, GRect(26, 5, 60, 70));
+	glyph[1] = gbitmap_create_as_sub_bitmap(glyphs, GRect(91, 5, 30, 70));
+	glyph[2] = gbitmap_create_as_sub_bitmap(glyphs, GRect(126, 5, 60, 70));
+	glyph[3] = gbitmap_create_as_sub_bitmap(glyphs, GRect(191, 5, 60, 70));
+	glyph[4] = gbitmap_create_as_sub_bitmap(glyphs, GRect(26, 80, 45, 70));
+	glyph[5] = gbitmap_create_as_sub_bitmap(glyphs, GRect(76, 80, 60, 70));
+	glyph[6] = gbitmap_create_as_sub_bitmap(glyphs, GRect(141, 80, 60, 70));
+	glyph[7] = gbitmap_create_as_sub_bitmap(glyphs, GRect(206, 80, 45, 70));
+	glyph[8] = gbitmap_create_as_sub_bitmap(glyphs, GRect(26, 155, 60, 70));
+	glyph[9] = gbitmap_create_as_sub_bitmap(glyphs, GRect(91, 155, 60, 70));
+
 	// Font 8x6 numbers
 	glyph[10] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 243, 6, 8));
 	glyph[11] = gbitmap_create_as_sub_bitmap(glyphs, GRect(13, 243, 6, 8));
@@ -230,6 +236,7 @@ main()
 	glyph[17] = gbitmap_create_as_sub_bitmap(glyphs, GRect(61, 243, 6, 8));
 	glyph[18] = gbitmap_create_as_sub_bitmap(glyphs, GRect(69, 243, 6, 8));
 	glyph[19] = gbitmap_create_as_sub_bitmap(glyphs, GRect(77, 243, 6, 8));
+
 	// Font 8x6 uppercase letters
 	glyph[20] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 230, 6, 8));
 	glyph[21] = gbitmap_create_as_sub_bitmap(glyphs, GRect(13, 230, 6, 8));
@@ -257,51 +264,55 @@ main()
 	glyph[43] = gbitmap_create_as_sub_bitmap(glyphs, GRect(189, 230, 6, 8));
 	glyph[44] = gbitmap_create_as_sub_bitmap(glyphs, GRect(197, 230, 6, 8));
 	glyph[45] = gbitmap_create_as_sub_bitmap(glyphs, GRect(205, 230, 6, 8));
+
 	// Font 8x6 special characters
 	glyph[46] = gbitmap_create_as_sub_bitmap(glyphs, GRect(85, 243, 6, 8));
 	glyph[47] = gbitmap_create_as_sub_bitmap(glyphs, GRect(93, 243, 6, 8));
 	glyph[48] = gbitmap_create_as_sub_bitmap(glyphs, GRect(101, 243, 6, 8));
+
 	// Font 4x5 numbers
-	glyph[60] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 5, 4, 5));
-	glyph[61] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 12, 4, 5));
-	glyph[62] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 19, 4, 5));
-	glyph[63] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 26, 4, 5));
-	glyph[64] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 33, 4, 5));
-	glyph[65] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 40, 4, 5));
-	glyph[66] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 47, 4, 5));
-	glyph[67] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 54, 4, 5));
-	glyph[68] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 61, 4, 5));
-	glyph[69] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 68, 4, 5));
+	glyph[60] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 5, 4, 5));
+	glyph[61] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 12, 4, 5));
+	glyph[62] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 19, 4, 5));
+	glyph[63] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 26, 4, 5));
+	glyph[64] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 33, 4, 5));
+	glyph[65] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 40, 4, 5));
+	glyph[66] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 47, 4, 5));
+	glyph[67] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 54, 4, 5));
+	glyph[68] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 61, 4, 5));
+	glyph[69] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 68, 4, 5));
+
 	// Font 4x5 uppercase letters
-	glyph[70] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 5, 4, 5));
-	glyph[71] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 12, 4, 5));
-	glyph[72] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 19, 4, 5));
-	glyph[73] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 26, 4, 5));
-	glyph[74] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 33, 4, 5));
-	glyph[75] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 40, 4, 5));
-	glyph[76] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 47, 4, 5));
-	glyph[77] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 54, 4, 5));
-	glyph[78] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 61, 4, 5));
-	glyph[79] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 68, 4, 5));
-	glyph[80] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 75, 4, 5));
-	glyph[81] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 82, 4, 5));
-	glyph[82] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 89, 4, 5));
-	glyph[83] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 96, 4, 5));
-	glyph[84] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 103, 4, 5));
-	glyph[85] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 110, 4, 5));
-	glyph[86] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 117, 4, 5));
-	glyph[87] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 124, 4, 5));
-	glyph[88] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 131, 4, 5));
-	glyph[89] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 138, 4, 5));
-	glyph[90] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 145, 4, 5));
-	glyph[91] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 152, 4, 5));
-	glyph[92] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 159, 4, 5));
-	glyph[93] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 166, 4, 5));
-	glyph[94] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 173, 4, 5));
-	glyph[95] = gbitmap_create_as_sub_bitmap(glyphs, GRect(243, 180, 4, 5));
+	glyph[70] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 5, 4, 5));
+	glyph[71] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 12, 4, 5));
+	glyph[72] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 19, 4, 5));
+	glyph[73] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 26, 4, 5));
+	glyph[74] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 33, 4, 5));
+	glyph[75] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 40, 4, 5));
+	glyph[76] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 47, 4, 5));
+	glyph[77] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 54, 4, 5));
+	glyph[78] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 61, 4, 5));
+	glyph[79] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 68, 4, 5));
+	glyph[80] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 75, 4, 5));
+	glyph[81] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 82, 4, 5));
+	glyph[82] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 89, 4, 5));
+	glyph[83] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 96, 4, 5));
+	glyph[84] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 103, 4, 5));
+	glyph[85] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 110, 4, 5));
+	glyph[86] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 117, 4, 5));
+	glyph[87] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 124, 4, 5));
+	glyph[88] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 131, 4, 5));
+	glyph[89] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 138, 4, 5));
+	glyph[90] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 145, 4, 5));
+	glyph[91] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 152, 4, 5));
+	glyph[92] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 159, 4, 5));
+	glyph[93] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 166, 4, 5));
+	glyph[94] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 173, 4, 5));
+	glyph[95] = gbitmap_create_as_sub_bitmap(glyphs, GRect(14, 180, 4, 5));
+
 	// Font 4x5 special characters
-	glyph[96] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 75, 4, 5));
-	glyph[97] = gbitmap_create_as_sub_bitmap(glyphs, GRect(235, 82, 4, 5));
+	glyph[96] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 75, 4, 5));
+	glyph[97] = gbitmap_create_as_sub_bitmap(glyphs, GRect(5, 82, 4, 5));
 
 	// Window
 	win = window_create();

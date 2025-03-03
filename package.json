@@ -14,7 +14,7 @@
     "pebble-clay": "^1.0.4"
   },
   "pebble": {
-    "displayName": "brutal",
+    "displayName": "BRUTAL",
     "uuid": "ceab2ac8-a9b0-451c-a3e2-d00a8fd5fc52",
     "sdkVersion": "3",
     "enableMultiJS": true,
@@ -36,8 +36,7 @@
         {
           "type": "bitmap",
           "name": "GLYPHS",
-          "file": "glyphs.png",
-          "memoryFormat": "1Bit"
+          "file": "glyphs.png"
         }
       ]
     }
