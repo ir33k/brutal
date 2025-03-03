@@ -206,6 +206,19 @@ up with most basic solution.  I think that it looks excellent.
 ![New design running on Pebble Time](picture/06.jpeg)
 
 
+2025.03.03 Mon 18:59 I lied!
+----------------------------
+
+The battery level percent as background color was a short lived
+feature.  No matter what color combination I tried I wasn't super
+happy about it.  And the dithering on BW displays was messing with the
+small fonts.  I tried to add background and border to those small
+fonts to solve this issue but then watchface looked super ugly.
+
+With that, I decided to terminate this feature.  But it will be back
+as text in either left or bottom text area.
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/

@@ -32,13 +32,6 @@ new Clay([
         "label": "Foreground",
         "allowGray": false,
         "defaultValue": "000000"
-      },
-      {
-        "type": "color",
-        "messageKey": "LEVELCOLOR",
-        "label": "Battery level",
-        "capabilities": ["COLOR"],
-        "defaultValue": "FF0000"
       }
     ]
   },
