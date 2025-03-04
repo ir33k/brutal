@@ -44,7 +44,7 @@ new Clay([
       },
       {
         "type": "text",
-        "defaultValue": "Fits up to 13 characters."
+        "defaultValue": "Fits up to 17 characters."
       },
       {
         "id": "bottom-select",
@@ -77,14 +77,14 @@ new Clay([
     "items": [
       {
         "type": "heading",
-        "defaultValue": "Left text"
+        "defaultValue": "Side text"
       },
       {
         "type": "text",
         "defaultValue": "Fits up to 20 characters."
       },
       {
-        "id": "left-select",
+        "id": "side-select",
         "type": "select",
         "label": "Presets",
         "defaultValue": "%B %Y",
@@ -101,9 +101,9 @@ new Clay([
         ]
       },
       {
-        "id": "left-input",
+        "id": "side-input",
         "type": "input",
-        "messageKey": "LEFT",
+        "messageKey": "SIDE",
         "label": "Format",
         "defaultValue": "%B %Y",
 	"description": "Format strings follows strftime(3) manual page."
@@ -119,14 +119,14 @@ new Clay([
       },
       {
         "type": "select",
-        "messageKey": "VIBEBTON",
+        "messageKey": "VIBEBTOFF",
         "label": "Bluetooth disconnected",
         "defaultValue": 0,
         "options": vibs
       },
       {
         "type": "select",
-        "messageKey": "VIBEBTOFF",
+        "messageKey": "VIBEBTON",
         "label": "Bluetooth connected",
         "defaultValue": 0,
         "options": vibs
@@ -148,15 +148,15 @@ new Clay([
   this.on(this.EVENTS.AFTER_BUILD, function () {
     var bottomSelect = this.getItemById("bottom-select")
     var bottomInput = this.getItemById("bottom-input")
-    var leftSelect = this.getItemById("left-select")
-    var leftInput = this.getItemById("left-input")
+    var sideSelect = this.getItemById("side-select")
+    var sideInput = this.getItemById("side-input")
 
     bottomSelect.on("change", function () {
       bottomInput.set(bottomSelect.get())
     })
 
-    leftSelect.on("change", function () {
-      leftInput.set(leftSelect.get())
+    sideSelect.on("change", function () {
+      sideInput.set(sideSelect.get())
     })
   }.bind(this))
 })
