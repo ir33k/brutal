@@ -1,7 +1,5 @@
 var Clay = require('pebble-clay')
 
-// TODO(irek): Add AM/PM presets
-
 var vibs = [
   { "value": 0, "label": "None" },
   { "value": 1, "label": "Short" },

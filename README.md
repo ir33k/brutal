@@ -6,6 +6,16 @@ Pebble watchface created during [Rebble][] [Hackathon #002][].
 > This project has completely confiscated my life, darling.  My best
 > work, I must admit.  Simple, elegant, yet bold.  You will die.
 
+App store:
+
+- [BRUTAL - aplite][]
+- [BRUTAL - basalt][]
+- [BRUTAL - diorite][]
+
+![Quick view animation](picture/brutal.gif)
+![White on black](picture/08.png)
+![How quick view looks like](picture/16.jpg)
+
 
 DEVLOG
 ======
@@ -229,6 +239,24 @@ pictures of white on black color combination with custom texts.
 ![High resolution photo of white on black font](picture/08.png)
 
 
+2025.03.04 Tue 19:44 Everybody stay calm! OMG it's happening!
+-------------------------------------------------------------
+
+It took a longer while but I made it.  I had most done on day one.
+But as usual the finishing touches take longer than quick gains.
+Today I had to rewrite most of the code from bitmap rendering to
+framebuffer rendering to support dithering in my fonts.  I needed that
+to support quick view (unobstructed / popup).
+
+![Photo of watchface with dithering effect](picture/09.png)
+
+I also have all customisation in place.  Custom content for side and
+bottom texts, colors and vibrations.  I'm ready for firs release.  I
+need screenshots for app store page.
+
+![How quick view looks like](picture/16.jpg)
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/
@@ -236,3 +264,7 @@ pictures of white on black color combination with custom texts.
 [Pebble development documentation]: https://developer.rebble.io/developer.pebble.com/index.html
 [Clay]: https://github.com/pebble/clay
 [PebbleOS]: https://github.com/google/Pebble
+[Rebble Developer Portal]: https://dev-portal.rebble.io/
+[BRUTAL - aplite]: https://apps.rebble.io/en_US/application/67c751c6d2acb30009a3c812?hardware=aplite
+[BRUTAL - basalt]: https://apps.rebble.io/en_US/application/67c751c6d2acb30009a3c812?hardware=basalt
+[BRUTAL - diorite]: https://apps.rebble.io/en_US/application/67c751c6d2acb30009a3c812?hardware=diorite

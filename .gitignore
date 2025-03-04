@@ -3,3 +3,5 @@ build
 *.*~
 TAGS
 node_modules
+picture/gif
+*.blend1
