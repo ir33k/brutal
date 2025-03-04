@@ -1,5 +1,7 @@
 var Clay = require('pebble-clay')
 
+// TODO(irek): Add AM/PM presets
+
 var vibs = [
   { "value": 0, "label": "None" },
   { "value": 1, "label": "Short" },
@@ -59,7 +61,8 @@ new Clay([
           { "value": "%b %d",    "label": "Nov 18" },
           { "value": "%m/%d/%y", "label": "11/18/24" },
           { "value": "%Y.%m.%d", "label": "2022.11.18" },
-          { "value": "%d.%m.%Y", "label": "18.11.2022" }
+          { "value": "%d.%m.%Y", "label": "18.11.2022" },
+	  { "value": "%p",       "label": "AM/PM" }
         ]
       },
       {
@@ -97,7 +100,8 @@ new Clay([
           { "value": "%b %d",    "label": "Nov 18" },
           { "value": "%m/%d/%y", "label": "11/18/24" },
           { "value": "%Y.%m.%d", "label": "2022.11.18" },
-          { "value": "%d.%m.%Y", "label": "18.11.2022" }
+          { "value": "%d.%m.%Y", "label": "18.11.2022" },
+	  { "value": "%p",       "label": "AM/PM" }
         ]
       },
       {

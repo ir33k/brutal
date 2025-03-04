@@ -16,8 +16,9 @@ static struct {
 static Layer *body, *hours, *minutes, *side, *bottom;
 static GBitmap *glyphs;
 static uint8_t *pixels;
+static uint8_t opacity = 255;
 
-static const GRect bounds[] = {
+static GRect bounds[] = {
 	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
 	[HOURS] = {{5*2+4, 5}, {PBL_DISPLAY_WIDTH-5*3-4, 70}},
 	[MINUTES] = {{5*2+4, 5*2+70}, {PBL_DISPLAY_WIDTH-5*3-4, 70}},
@@ -117,6 +118,12 @@ static const GRect fonts[3][128] = {
 	}
 };
 
+int
+normal(int v, int vmin, int vmax, int min, int max)
+{
+	return ((float)(v-vmin) / (float)(vmax-vmin)) * (float)(max-min) + min;
+}
+
 static struct tm *
 now()
 {
@@ -142,6 +149,24 @@ draw_pixel(GBitmapDataRowInfo info, int16_t x, GColor color)
 	uint8_t *bp   = &info.data[byte];
 	*bp ^= (-value ^ *bp) & (1 << bit);
 #endif
+}
+
+static GRect
+get_glyph(enum font font, char c)
+{
+	GRect glyph;
+
+	// Ignore non ASCII
+	if (c > 128)
+		c = ' ';
+
+	glyph = fonts[font][(int)c];
+
+	// No glyph has x=0, use space as default
+	if (!glyph.origin.x)
+		glyph = fonts[font][' '];
+
+	return glyph;
 }
 
 static void
@@ -178,14 +203,7 @@ print_font(GContext *ctx, GRect rect,
 		offset = rect.size.w;
 		offset -= (len-1) * spacing;
 		for (i=0; i<len; i++) {
-			if (str[i] > 128)
-				continue;
-
-			glyph = fonts[font][(int)str[i]];
-
-			if (!glyph.origin.x)
-				glyph = fonts[font][' '];
-
+			glyph = get_glyph(font, str[i]);
 			offset -= glyph.size.w;
 		}
 		rect.origin.x += offset;
@@ -195,14 +213,7 @@ print_font(GContext *ctx, GRect rect,
 		offset = rect.size.h;
 		offset -= (len-1) * spacing;
 		for (i=0; i<len; i++) {
-			if (str[i] > 128)
-				continue;
-
-			glyph = fonts[font][(int)str[i]];
-
-			if (!glyph.origin.x)
-				glyph = fonts[font][' '];
-
+			glyph = get_glyph(font, str[i]);
 			offset -= glyph.size.h;
 		}
 		rect.origin.y += offset;
@@ -217,14 +228,7 @@ print_font(GContext *ctx, GRect rect,
 	fb = graphics_capture_frame_buffer(ctx);
 
 	for (i=0; i<len; i++) {
-		if (str[i] > 128)
-			continue;	// Ignore non ASCII
-
-		glyph = fonts[font][(int)str[i]];
-
-		if (!glyph.origin.x)
-			glyph = fonts[font][' '];
-
+		glyph = get_glyph(font, str[i]);
 		py = glyph.origin.y;
 		maxpx = glyph.origin.x + glyph.size.w;
 		maxpy = glyph.origin.y + glyph.size.h;
@@ -293,7 +297,11 @@ Hours(Layer *_layer, GContext *ctx)
 		buf[0] = buf[1];
 		buf[1] = 0;
 	}
-	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, 5, 128+64);
+
+	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, 5, opacity);
+
+	if (opacity != 255)
+		print_font(ctx, bounds[HOURS], SMALL, LEFT, buf, 2, 255);
 }
 
 static void
@@ -332,6 +340,28 @@ Bottom(Layer *_layer, GContext *ctx)
 }
 
 static void
+Unobstructed(AnimationProgress _p, void *win)
+{
+	Layer *root;
+	GRect rect0, rect1;
+	int16_t offset;
+
+	root = window_get_root_layer((Window *) win);
+	rect0 = layer_get_bounds(root);
+	rect1 = layer_get_unobstructed_bounds(root);
+
+	bounds[MINUTES].origin.y = 5*2+70;
+	bounds[BOTTOM].origin.y = 5*3+70*2;
+	opacity = 255;
+	offset = rect0.size.h - rect1.size.h;
+	if (offset > 0) {
+		bounds[MINUTES].origin.y -= offset;
+		bounds[BOTTOM].origin.y -= offset;
+		opacity -= normal(offset, 0, 51, 0, 248);
+	}
+}
+
+static void
 Load(Window *win)
 {
 	Layer *root;
@@ -357,6 +387,15 @@ Load(Window *win)
 	bottom = layer_create(bounds[BOTTOM]);
 	layer_set_update_proc(bottom, Bottom);
 	layer_add_child(body, bottom);
+
+	UnobstructedAreaHandlers handlers = { 0, Unobstructed, 0 };
+	unobstructed_area_service_subscribe(handlers, win);
+	Unobstructed(0, win);
+
+	// NOTE(irek): Aplite has unobstructed_area_service_subscribe
+	// macro doing nothing.  In result the variable "handlers" is
+	// never used and I'm getting compailer error.
+	(void)handlers;
 }
 
 static void
