@@ -95,13 +95,11 @@ have 3 rows of big numbers.  I liked the idea of 9 digits because I
 could display text PEBBLE, and 3 rows play very nice with the quick
 view popup as only the last bottom row disappear.
 
-```
-    .-------.    .-------.    .-------. 
-    |  1 2  |    |  P E  |    |  1 2  |
-    |  3 4  |    |  B B  |    |__3_4__|
-    |  5 6  |    |  L E  |    | popup |
-    '-------'    '-------'    '-------' 
-```
+	.-------.    .-------.    .-------. 
+	|  1 2  |    |  P E  |    |  1 2  |
+	|  3 4  |    |  B B  |    |__3_4__|
+	|  5 6  |    |  L E  |    | popup |
+	'-------'    '-------'    '-------' 
 
 But no matter what I tried the design just didn't worked.  The number
 where way to small, they where either stretched or a lot of the screen
@@ -255,6 +253,60 @@ bottom texts, colors and vibrations.  I'm ready for firs release.  I
 need screenshots for app store page.
 
 ![How quick view looks like](picture/16.jpg)
+
+
+2025.03.05 Wed 15:24 Ending has not yet been written
+----------------------------------------------------
+
+First version is out.  But this is not the end.  There is a problem
+with settings on Aplite pebbles.  Nothing happens when user clicks the
+submit button in [Clay][] web form.  I debugged this for hours but
+found nothing.  There is only a generic error log from `pkjs`.
+
+	[11:23:40] pkjs> Failed to send config data!
+	[11:23:40] pkjs> {"data":{"transactionId":2}}
+
+I found what print those logs in Clay source code.  It's nothing special.
+
+	// Send settings to Pebble watchapp
+	Pebble.sendAppMessage(self.getSettings(e.response), function() {
+	   console.log('Sent config data to Pebble');
+	}, function(error) {
+	   console.log('Failed to send config data!');
+	   console.log(JSON.stringify(error));
+	});
+
+I tried to find implementation of `Pebble.sendAppMessage`.  I searched
+Pebble SDK and Pebble OS.  Nothing.  Then I thought that there is
+something strange in my Clay configuration.  But after reducing it to
+just a single toggle button and submit button I had the same results.
+It works on all targets except for Aplite.  Last thing that I did was
+to search for few very popular watchfaces that use Clay.  I read their
+source code and found nothing.  It's all the same.
+
+At this point I don't know what else I could try.  On Discord someone
+asked me about my Pebble build tools suggesting that this can make a
+difference.  OFC it can.  So maybe the last thing that I can try is to
+use some of the prepared dev environments like VM.  I would hate to do
+that tho.  I can also try to compile someones watchfaces and test them
+to verify my local setup.  Eh...
+
+Second "problem" is that the Brutal watchface don't support Diorite
+target, the Pebble Round.  I rly tried to do a design for it earlier.
+But the main numbers don't even fit the screen.  But 2 people already
+asked me about it.  So I decided to give it a good second try.  Now I
+have a complete design language.  I could use tricks from Quick View
+layout in Pebble Round.  We will see.
+
+Last smallest issue is with the App Store images.  They are not up to
+date and don't demonstrate watchface as well as they could.  I will
+fix that first because I know how to do it.
+
+BTW I liked the dithering pattern visible in Quick View so much that I
+found a way to include it in main view.  I called it the "Shadow"!
+It's totally optional and it's strength can be adjusted.
+
+![How quick view looks like](picture/19.jpg)
 
 
 [Rebble]: http://rebble.io/
