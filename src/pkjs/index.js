@@ -143,6 +143,21 @@ new Clay([
     ]
   },
   {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Other"
+      },
+      {
+        "type": "toggle",
+        "messageKey": "PADH",
+        "label": "Avoid drawing leading 0 in hours",
+        "defaultValue": true
+      }
+    ]
+  },
+  {
     "type": "submit",
     "defaultValue": "Save"
   }

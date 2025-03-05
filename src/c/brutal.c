@@ -11,6 +11,7 @@ static struct {
 	GColor bg, fg;
 	char side[32], bottom[32];
 	enum vibe bt_on, bt_off, each_hour;
+	bool pad_h;
 } config;
 
 static Layer *body, *hours, *minutes, *side, *bottom;
@@ -289,19 +290,31 @@ Hours(Layer *_layer, GContext *ctx)
 {
 	char buf[4];
 	struct tm *tm;
+	GRect rect;
+	unsigned len;
 
 	tm = now();
 	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
 
-	if (buf[0] == '0') {	// Avoid printing leading 0
+	// Remove leading 0
+	if (config.pad_h && buf[0] == '0') {
 		buf[0] = buf[1];
 		buf[1] = 0;
 	}
 
 	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, 5, opacity);
 
-	if (opacity != 255)
-		print_font(ctx, bounds[HOURS], SMALL, LEFT, buf, 2, 255);
+	if (opacity == 255)
+		return;
+
+	len = strlen(buf);
+	rect.origin.x = bounds[HOURS].size.w - len*8 -2;
+	rect.origin.y = 0;
+	rect.size.w = len*8 +2;
+	rect.size.h = 10;
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, rect, 0, GCornerNone);
+	print_font(ctx, bounds[HOURS], SMALL, LEFT, buf, 2, 255);
 }
 
 static void
@@ -357,7 +370,7 @@ Unobstructed(AnimationProgress _p, void *win)
 	if (offset > 0) {
 		bounds[MINUTES].origin.y -= offset;
 		bounds[BOTTOM].origin.y -= offset;
-		opacity -= normal(offset, 0, 51, 0, 248);
+		opacity -= normal(offset, 0, 51, 0, 224);
 	}
 }
 
@@ -441,7 +454,7 @@ configure()
 }
 
 static void
-Msg(DictionaryIterator *di, void *_ctx)
+Received(DictionaryIterator *di, void *_ctx)
 {
 	Tuple *tuple;
 
@@ -465,6 +478,9 @@ Msg(DictionaryIterator *di, void *_ctx)
 
 	if ((tuple = dict_find(di, MESSAGE_KEY_VIBEEACHHOUR)))
 		config.each_hour = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_PADH)))
+		config.pad_h = tuple->value->int8;;
 
 	persist_write_data(CONFKEY, &config, sizeof config);
 	configure();
@@ -503,10 +519,11 @@ main()
 	config.bt_on = SILENT;
 	config.bt_off = SILENT;
 	config.each_hour = SILENT;
+	config.pad_h = true;
 	persist_read_data(CONFKEY, &config, sizeof config);
 	configure();
-	app_message_register_inbox_received(Msg);
-	app_message_open(dict_calc_buffer_size(8, 16), 0);
+	app_message_register_inbox_received(Received);
+	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 
 	// Main
 	app_event_loop();
