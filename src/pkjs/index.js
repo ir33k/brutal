@@ -162,7 +162,7 @@ new Clay([
         "label": "Shadow strength",
         "description": "Dithered numbers for hours and minutes.",
         "min": 0,
-        "max": 252,
+        "max": 128,
         "step": 4
       },
     ]
