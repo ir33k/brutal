@@ -153,8 +153,18 @@ new Clay([
         "type": "toggle",
         "messageKey": "PADH",
         "label": "Avoid drawing leading 0 in hours",
-        "defaultValue": true
-      }
+        "defaultValue": false
+      },
+      {
+        "type": "slider",
+        "messageKey": "SHADOW",
+        "defaultValue": 16,
+        "label": "Shadow strength",
+        "description": "Dithered numbers for hours and minutes.",
+        "min": 0,
+        "max": 252,
+        "step": 4
+      },
     ]
   },
   {

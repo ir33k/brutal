@@ -12,6 +12,7 @@ static struct {
 	char side[32], bottom[32];
 	enum vibe bt_on, bt_off, each_hour;
 	bool pad_h;
+	uint8_t shadow;
 } config;
 
 static Layer *body, *hours, *minutes, *side, *bottom;
@@ -304,8 +305,10 @@ Hours(Layer *_layer, GContext *ctx)
 
 	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, 5, opacity);
 
-	if (opacity == 255)
+	if (opacity == 255) {
+		print_font(ctx, bounds[HOURS], BIG, RIGHT, buf, 5, config.shadow);
 		return;
+	}
 
 	len = strlen(buf);
 	rect.origin.x = bounds[HOURS].size.w - len*8 -2;
@@ -325,7 +328,11 @@ Minutes(Layer *_layer, GContext *ctx)
 
 	tm = now();
 	strftime(buf, sizeof buf, "%M", tm);
+
 	print_font(ctx, bounds[MINUTES], BIG, LEFT, buf, 5, 255);
+
+	if (opacity == 255)
+		print_font(ctx, bounds[MINUTES], BIG, RIGHT, buf, 5, config.shadow);
 }
 
 static void
@@ -370,7 +377,7 @@ Unobstructed(AnimationProgress _p, void *win)
 	if (offset > 0) {
 		bounds[MINUTES].origin.y -= offset;
 		bounds[BOTTOM].origin.y -= offset;
-		opacity -= normal(offset, 0, 51, 0, 224);
+		opacity -= normal(offset, 0, 51, 0, 225);
 	}
 }
 
@@ -482,6 +489,9 @@ Received(DictionaryIterator *di, void *_ctx)
 	if ((tuple = dict_find(di, MESSAGE_KEY_PADH)))
 		config.pad_h = tuple->value->int8;;
 
+	if ((tuple = dict_find(di, MESSAGE_KEY_SHADOW)))
+		config.shadow = tuple->value->int32;
+
 	persist_write_data(CONFKEY, &config, sizeof config);
 	configure();
 }
@@ -519,7 +529,8 @@ main()
 	config.bt_on = SILENT;
 	config.bt_off = SILENT;
 	config.each_hour = SILENT;
-	config.pad_h = true;
+	config.pad_h = false;
+	config.shadow = 16;
 	persist_read_data(CONFKEY, &config, sizeof config);
 	configure();
 	app_message_register_inbox_received(Received);
