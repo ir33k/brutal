@@ -54,13 +54,13 @@ new Clay([
         "options": [
           { "value": "",         "label": "NOTHING" },
           { "value": "%A %d",    "label": "DEFAULT: Monday 18" },
+          { "value": "%p",       "label": "AM/PM" },
           { "value": "%a %d",    "label": "Sun 18" },
           { "value": "%B %d",    "label": "November 18" },
           { "value": "%b %d",    "label": "Nov 18" },
           { "value": "%m/%d/%y", "label": "11/18/24" },
           { "value": "%Y.%m.%d", "label": "2022.11.18" },
-          { "value": "%d.%m.%Y", "label": "18.11.2022" },
-	  { "value": "%p",       "label": "AM/PM" }
+          { "value": "%d.%m.%Y", "label": "18.11.2022" }
         ]
       },
       {
@@ -69,7 +69,7 @@ new Clay([
         "messageKey": "BOTTOM",
         "label": "Format",
         "defaultValue": "%A %d",
-	"description": "Format strings follows strftime(3) manual page."
+        "description": "Format strings follows strftime(3) manual page."
       },
     ]
   },
@@ -92,6 +92,7 @@ new Clay([
         "options": [
           { "value": "",         "label": "NOTHING" },
           { "value": "%B %Y",    "label": "DEFAULT: November 2024" },
+          { "value": "%p",       "label": "AM/PM" },
           { "value": "%A %d",    "label": "Monday 18" },
           { "value": "%a %d",    "label": "Sun 18" },
           { "value": "%B %d",    "label": "November 18" },
@@ -99,7 +100,7 @@ new Clay([
           { "value": "%m/%d/%y", "label": "11/18/24" },
           { "value": "%Y.%m.%d", "label": "2022.11.18" },
           { "value": "%d.%m.%Y", "label": "18.11.2022" },
-	  { "value": "%p",       "label": "AM/PM" }
+          { "value": "Rebble %Y", "label": "Rebble 2022" }
         ]
       },
       {
@@ -108,7 +109,7 @@ new Clay([
         "messageKey": "SIDE",
         "label": "Format",
         "defaultValue": "%B %Y",
-	"description": "Format strings follows strftime(3) manual page."
+        "description": "Format strings follows strftime(3) manual page."
       },
     ]
   },
@@ -160,11 +161,11 @@ new Clay([
         "messageKey": "SHADOW",
         "defaultValue": 16,
         "label": "Shadow strength",
-        "description": "Dithered numbers for hours and minutes.",
+        "description": "Dithering for numbers shadow. Some values works better than other because they give more uniform look, values like 4, 8, 16.  Use value of 0 to disable.",
         "min": 0,
         "max": 128,
         "step": 4
-      },
+      }
     ]
   },
   {
