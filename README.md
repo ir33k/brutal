@@ -309,6 +309,23 @@ It's totally optional and it's strength can be adjusted.
 ![How quick view looks like](picture/19.jpg)
 
 
+2025.03.06 Thu 16:56
+
+	Possible diagonals (there are only 3)
+
+	x x x x   x x x x       x x
+	x x x x   x x x x     x x x
+	x x x       x x x   x x x x
+	x x           x x   x x x x
+
+	Detection masks
+
+	1 1 0     0 1 1     0 0 0
+	1 0 0     0 0 1     0 0 1
+	0 0 0     0 0 0     0 1 1
+
+
+
 [Rebble]: http://rebble.io/
 [Hackathon #002]: https://rebble.io/hackathon-002/
 [Installing the Pebble SDK]: https://help.rebble.io/sdk/
