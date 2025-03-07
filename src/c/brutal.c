@@ -11,6 +11,7 @@ enum tile { EMPTY, FULL, CORNER0, CORNER1, CORNER2 };
 enum direction { UP, RIGHT, DOWN, LEFT };
 enum vibe { SILENT, SHORT, LONG, DOUBLE };
 enum layer { BODY, HOURS, MINUTES, SIDE, BOTTOM };
+enum fmt { COPY, BATTERY };
 
 static struct {
 	GColor bg, fg;
@@ -23,6 +24,7 @@ static struct {
 static Layer *body, *hours, *minutes, *side, *bottom;
 static GBitmap *glyphs;
 static uint8_t opacity = 255;
+static uint8_t charge;
 
 static GRect bounds[] = {
 	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
@@ -142,6 +144,48 @@ now()
 }
 
 static void
+parsefmt(char *dst, unsigned sz, char *fmt)
+{
+	char battery[8];
+	unsigned i, j, k;
+	enum fmt state;
+
+	snprintf(battery, sizeof battery, "%u%%%%", charge);
+
+	state = COPY;
+	for (i=0, j=0, k=0; i<sz-1;) {
+		switch (state) {
+		case COPY:
+			if (!fmt[j]) {
+				dst[i] = 0;
+				return;		// End
+			}
+			if (fmt[j] == '#') {
+				switch (fmt[j+1]) {
+				case 'b':
+				case 'B':
+					k = 0;
+					j += 2;
+					state = BATTERY;
+					continue;
+				case '#':	// '##' -> '#'
+					j++;
+					break;
+				}
+			}
+			dst[i++] = fmt[j++];
+			break;
+		case BATTERY:
+			if (battery[k])
+				dst[i++] = battery[k++];
+			else
+				state = COPY;
+			break;
+		}
+	}
+}
+
+static void
 draw_pixel(GBitmapDataRowInfo info, int16_t x, GColor color)
 {
 #if defined(PBL_COLOR)
@@ -160,7 +204,7 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 {
 	static uint8_t RES = 5;
 	// Enough to fit scalled up (5 times) glyph of BIG font encoded in 1bit way
-	static uint8_t buf[8*70] = {};
+	static uint8_t buf[BMPW*70] = {};
 	GRect scaled;
 	uint8_t x, y, maxx, maxy;
 	uint8_t bx, by, maxbx, maxby;
@@ -419,11 +463,12 @@ Minutes(Layer *_layer, GContext *ctx)
 static void
 Side(Layer *_layer, GContext *ctx)
 {
-	char buf[32];
+	char fmt[32], buf[32];
 	struct tm *tm;
 
 	tm = now();
-	strftime(buf, sizeof buf, config.side, tm);
+	parsefmt(fmt, sizeof fmt, config.side);
+	strftime(buf, sizeof buf, fmt, tm);
 	buf[20] = 0;
 	print_font(ctx, bounds[SIDE], TINY, DOWN, buf, 2, 255);
 }
@@ -431,11 +476,12 @@ Side(Layer *_layer, GContext *ctx)
 static void
 Bottom(Layer *_layer, GContext *ctx)
 {
-	char buf[32];
+	char fmt[32], buf[32];
 	struct tm *tm;
 
 	tm = now();
-	strftime(buf, sizeof buf, config.bottom, tm);
+	parsefmt(fmt, sizeof fmt, config.bottom);
+	strftime(buf, sizeof buf, fmt, tm);
 	buf[17] = 0;
 	print_font(ctx, bounds[BOTTOM], SMALL, LEFT, buf, 2, 255);
 }
@@ -532,6 +578,14 @@ Bluetooth(bool connected)
 }
 
 static void
+Battery(BatteryChargeState state)
+{
+	charge = state.charge_percent;
+	layer_mark_dirty(bottom);
+	layer_mark_dirty(side);
+}
+
+static void
 configure()
 {
 	connection_service_unsubscribe();
@@ -617,6 +671,8 @@ main()
 	glyphs = gbitmap_create_with_resource(RESOURCE_ID_GLYPHS);
 
 	// Main
+	battery_state_service_subscribe(Battery);
+	Battery(battery_state_service_peek());
 	app_event_loop();
 
 	// Cleanup
