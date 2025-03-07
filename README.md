@@ -309,21 +309,63 @@ It's totally optional and it's strength can be adjusted.
 ![How quick view looks like](picture/19.jpg)
 
 
-2025.03.06 Thu 16:56
+2025.03.07 Fri 11:46 Why Are We Still Here? Just To Suffer?
+-----------------------------------------------------------
 
-	Possible diagonals (there are only 3)
+In last devlog I talked about an issue with configuration page in
+Aplite platform.  One might think that somewhere there was just a
+simple mistake that was difficult to spot.  But not this time.  This
+time I was going to suffer hours of debugging and another hours of
+rewriting font rendering ... again (-_- ).
 
-	x x x x   x x x x       x x
-	x x x x   x x x x     x x x
-	x x x       x x x   x x x x
-	x x           x x   x x x x
+I debugged this in so many way.  I even got help from @NiVZ user.  He
+helped confirm that there was nothing wrong with my local build tools.
+So eventually I created new super simple watchface with basic Clay
+configuration.  And it worked with Aplite.  So I kept adding code from
+Brutal source to that debug project until Clay configuration it was
+broken.  Eventually I found it.
 
-	Detection masks
+It was the resource bitmap image with font glyphs.  It was just too
+fat.  Took to much space.  So now I was on quest to reduce size of it.
 
-	1 1 0     0 1 1     0 0 0
-	1 0 0     0 0 1     0 0 1
-	0 0 0     0 0 0     0 1 1
+This is what I had at that time, the 256 x 256 px 1-bit bitmap image:
 
+![1-bit bitmap image with glyphs](picture/36.png)
+
+At first I thought that maybe it's enough to remove empty space and
+pack glyphs as tight as possible.  I did that but it was not enough.
+Basic observation shown that big font is the problem.  Single glyph
+from that font takes as much space as it is needed for all glyphs from
+small and tiny fonts together.  But how can I reduce size of that
+font?  I can't just compress it and then decompress later as it will
+still take the same heap memory.  I also can't use vectors for it
+because it will not work with my custom dithering.  What to do?
+
+The big font is very modular.  It's build from 5x5 px blocks that are
+mostly the same: full block, empty block and one diagonal with 3
+orientations.  Initially I wanted to encode information about those 3
+blocks.  But closer inspection shown that encoding itself would take
+almost the same space as current regular bitmap that is stored in
+1-bit pixel format.  And then I saw it.  This font can be stored in
+bitmap as it was but 5 times smaller.  Then when rendering I just have
+to scale it up 5 times.  45 degree edges looked tricky but information
+about where those edges are is still in this miniature version.  I
+stored small tiles for each of those 45 degree edges and repainted
+them when glyphs are scaled.
+
+This is how bitmap image looked after drawing big font 5 times smaller
+and rearranging glyphs to not waste any space:
+
+![Packed bitmap image](picture/37.png)
+
+Note the tiles for 45 deg edges next to big number 4 and the one full
+tile below small digit 9.  With just those the big font is restored.
+I still have to reserve runtime that will hold one scaled up glyph
+from big font but it's not nearly as expensive as the original bitmap.
+
+And OFC this is more heavy on CPU but still, thanks to all of that I
+was able to fix memory issue in Aplite and thanks to that the Clay
+configuration works.
 
 
 [Rebble]: http://rebble.io/
