@@ -52,16 +52,17 @@ new Clay([
         "label": "Presets",
         "defaultValue": "%A %d",
         "options": [
-          { "value": "",            "label": "NOTHING" },
-          { "value": "%A %d",       "label": "DEFAULT: Monday 18" },
-          { "value": "%p",          "label": "AM/PM" },
-          { "value": "%a %d",       "label": "Sun 18" },
-          { "value": "%B %d",       "label": "November 18" },
-          { "value": "%b %d",       "label": "Nov 18" },
-          { "value": "%m/%d/%y",    "label": "11/18/24" },
-          { "value": "%Y.%m.%d",    "label": "2022.11.18" },
-          { "value": "%d.%m.%Y",    "label": "18.11.2022" },
-          { "value": "Battery: #b", "label": "Battery: 75%" }
+          { "value": "",              "label": "NOTHING" },
+          { "value": "%A %d",         "label": "DEFAULT: Monday 18" },
+          { "value": "%p",            "label": "AM/PM" },
+          { "value": "%a %d",         "label": "Sun 18" },
+          { "value": "%B %d",         "label": "November 18" },
+          { "value": "%b %d",         "label": "Nov 18" },
+          { "value": "%m/%d/%y",      "label": "11/18/24" },
+          { "value": "%Y.%m.%d",      "label": "2022.11.18" },
+          { "value": "%d.%m.%Y",      "label": "18.11.2022" },
+          { "value": "Battery: #B%%", "label": "Battery: 75%" },
+          { "value": "Steps: #S",     "label": "Steps: 500" }
         ]
       },
       {
@@ -70,7 +71,7 @@ new Clay([
         "messageKey": "BOTTOM",
         "label": "Format",
         "defaultValue": "%A %d",
-        "description": "Format strings follows strftime(3) manual page.  Add '#b' to print battery charge percent."
+        "description": "Format strings follows strftime(3) manual page. Add '#B' to print battery charge percent. Add '#S' to print steps count from today."
       },
     ]
   },
@@ -102,7 +103,8 @@ new Clay([
           { "value": "%Y.%m.%d",   "label": "2022.11.18" },
           { "value": "%d.%m.%Y",   "label": "18.11.2022" },
           { "value": "Rebble %Y",  "label": "Rebble 2022" },
-          { "value": "Battery #b", "label": "Battery 75%" }
+          { "value": "Battery #B", "label": "Battery 75" },
+          { "value": "Steps #S",   "label": "Steps 500" }
         ]
       },
       {
@@ -111,7 +113,7 @@ new Clay([
         "messageKey": "SIDE",
         "label": "Format",
         "defaultValue": "%B %Y",
-        "description": "Format strings follows strftime(3) manual page.  Add '#b' to print battery charge percent."
+        "description": "Format strings follows strftime(3) manual page. Add '#B' to print battery charge percent. Add '#S' to print steps count from today."
       },
     ]
   },

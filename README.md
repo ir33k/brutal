@@ -358,14 +358,49 @@ and rearranging glyphs to not waste any space:
 
 ![Packed bitmap image](picture/37.png)
 
-Note the tiles for 45 deg edges next to big number 4 and the one full
-tile below small digit 9.  With just those the big font is restored.
-I still have to reserve runtime that will hold one scaled up glyph
-from big font but it's not nearly as expensive as the original bitmap.
+Tiles for 45 deg edges are next to big number 4 and one full tile
+below small digit 9.  With just those the big font is restored.  I
+still have to reserve runtime memory that will hold one scaled up
+glyph from big font but it's not nearly as expensive as the original
+bitmap.
 
 And OFC this is more heavy on CPU but still, thanks to all of that I
 was able to fix memory issue in Aplite and thanks to that the Clay
 configuration works.
+
+2025.03.07 Fri 13:37 Choose what is right or what is easy
+---------------------------------------------------------
+
+No I can focus on some easy parts like battery charge percent.  This
+is interesting as I want to have it as flexible as possible.  So it
+would be the best to just extend syntax of Date format.  Looks like
+the strftime() already tool all alphabet letters.  So I will use
+different prefix.  I'm going for `#` as it is not even displayed in
+the tiny font.  It still can be used when it's fallowed by lowercase
+letter.  And fonts have only uppercase letters so it allows user to
+use `#` if they want in the bottom text.
+
+	#bottom_text	-> #bottom_text
+	#Bottom_text	-> 80ottom_text
+	Battery: #B	-> Battery: 85
+	Battery: #B%%	-> Battery: 85%
+
+I can now add more custom values.  I did the same thing with daily
+steps counter.  I can add more like heart rate monitor but I think
+simple weather stuff would be better.  Basic temperature would be
+great to have.  I have never done this before.  From my experience of
+using other watchfaces it's usually not so great.  I could never trust
+it and I was always double checking the weather with second source.
+That's why I'm not convinced.
+
+The right thing to do now would be to adapt the design to Pebble Time
+Round.  I tried this before few times.  Most recently 2 days ago.
+It's very difficult.  Sure you can fit all numbers and text on round
+display.  But it looks terrible.  Too many sharp corners.  And big
+font is build from 5x5 px blocks making it impossible to center.
+After doing some research I found that most watchfaces just center
+everything which makes sense.  Fever designs tries to not do that.
+Looks like I'm forced to be creative again.
 
 
 [Rebble]: http://rebble.io/

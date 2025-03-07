@@ -26,6 +26,9 @@
     "watchapp": {
       "watchface": true
     },
+    "capabilities": [
+      "health"
+    ],
     "messageKeys": [
       "BGCOLOR",
       "FGCOLOR",

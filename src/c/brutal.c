@@ -11,7 +11,7 @@ enum tile { EMPTY, FULL, CORNER0, CORNER1, CORNER2 };
 enum direction { UP, RIGHT, DOWN, LEFT };
 enum vibe { SILENT, SHORT, LONG, DOUBLE };
 enum layer { BODY, HOURS, MINUTES, SIDE, BOTTOM };
-enum fmt { COPY, BATTERY };
+enum fmt { BATTERY, STEPS, COPY };
 
 static struct {
 	GColor bg, fg;
@@ -24,7 +24,8 @@ static struct {
 static Layer *body, *hours, *minutes, *side, *bottom;
 static GBitmap *glyphs;
 static uint8_t opacity = 255;
-static uint8_t charge;
+static uint8_t battery = 0;
+static HealthValue steps = 0;
 
 static GRect bounds[] = {
 	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
@@ -146,11 +147,12 @@ now()
 static void
 parsefmt(char *dst, unsigned sz, char *fmt)
 {
-	char battery[8];
-	unsigned i, j, k;
+	char buf[2][16];	// [enum fmt state][]
 	enum fmt state;
+	unsigned i, j, k;
 
-	snprintf(battery, sizeof battery, "%u%%%%", charge);
+	snprintf(buf[BATTERY], sizeof buf[BATTERY], "%u", battery);
+	snprintf(buf[STEPS], sizeof buf[STEPS], "%ld", steps);
 
 	state = COPY;
 	for (i=0, j=0, k=0; i<sz-1;) {
@@ -162,22 +164,21 @@ parsefmt(char *dst, unsigned sz, char *fmt)
 			}
 			if (fmt[j] == '#') {
 				switch (fmt[j+1]) {
-				case 'b':
-				case 'B':
-					k = 0;
-					j += 2;
-					state = BATTERY;
-					continue;
-				case '#':	// '##' -> '#'
-					j++;
-					break;
+				case 'B': state = BATTERY; break;
+				case 'S': state = STEPS; break;
 				}
+			}
+			if (state != COPY) {
+				k = 0;
+				j += 2;
+				continue;
 			}
 			dst[i++] = fmt[j++];
 			break;
 		case BATTERY:
-			if (battery[k])
-				dst[i++] = battery[k++];
+		case STEPS:
+			if (buf[state][k])
+				dst[i++] = buf[state][k++];
 			else
 				state = COPY;
 			break;
@@ -534,15 +535,6 @@ Load(Window *win)
 	bottom = layer_create(bounds[BOTTOM]);
 	layer_set_update_proc(bottom, Bottom);
 	layer_add_child(body, bottom);
-
-	UnobstructedAreaHandlers handlers = { 0, Unobstructed, 0 };
-	unobstructed_area_service_subscribe(handlers, win);
-	Unobstructed(0, win);
-
-	// NOTE(irek): Aplite has unobstructed_area_service_subscribe
-	// macro doing nothing.  In result the variable "handlers" is
-	// never used and I'm getting compailer error.
-	(void)handlers;
 }
 
 static void
@@ -580,17 +572,50 @@ Bluetooth(bool connected)
 static void
 Battery(BatteryChargeState state)
 {
-	charge = state.charge_percent;
+	battery = state.charge_percent;
 	layer_mark_dirty(bottom);
 	layer_mark_dirty(side);
 }
 
+#if defined(PBL_HEALTH)
+static void
+Health(HealthEventType event, void *_ctx) {
+	switch (event) {
+	case HealthEventSignificantUpdate:
+	case HealthEventMovementUpdate:
+		steps = health_service_sum_today(HealthMetricStepCount);
+		break;
+	case HealthEventHeartRateUpdate:
+	case HealthEventSleepUpdate:
+	case HealthEventMetricAlert:
+		break;
+	}
+}
+#endif
+
 static void
 configure()
 {
-	connection_service_unsubscribe();
 	if (config.bt_on || config.bt_off)
 		connection_service_subscribe((ConnectionHandlers){ Bluetooth, 0 });
+	else
+		connection_service_unsubscribe();
+
+	if (strstr(config.bottom, "#B") || strstr(config.side, "#B")) {
+		battery_state_service_subscribe(Battery);
+		Battery(battery_state_service_peek());
+	} else {
+		battery_state_service_unsubscribe();
+	}
+
+#if defined(PBL_HEALTH)
+	if (strstr(config.bottom, "#B") || strstr(config.side, "#B")) {
+		health_service_events_subscribe(Health, NULL);
+		Health(HealthEventSignificantUpdate, 0);
+	} else {
+		health_service_events_unsubscribe();
+	}
+#endif
 
 	layer_mark_dirty(body);
 }
@@ -670,9 +695,16 @@ main()
 	// Resources
 	glyphs = gbitmap_create_with_resource(RESOURCE_ID_GLYPHS);
 
+	// Unobstructed area (quick view)
+	UnobstructedAreaHandlers handlers = { 0, Unobstructed, 0 };
+	unobstructed_area_service_subscribe(handlers, win);
+	Unobstructed(0, win);
+	// NOTE(irek): Aplite has unobstructed_area_service_subscribe
+	// macro doing nothing.  In result the variable "handlers" is
+	// never used and I'm getting compailer error.
+	(void)handlers;
+
 	// Main
-	battery_state_service_subscribe(Battery);
-	Battery(battery_state_service_peek());
 	app_event_loop();
 
 	// Cleanup
