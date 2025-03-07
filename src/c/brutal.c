@@ -35,14 +35,6 @@ static GRect bounds[] = {
 	[BOTTOM] = {{5, 5*3+70*2}, {PBL_DISPLAY_WIDTH-5*2, 8}}
 };
 
-// Tiles used to scalue up BIG font
-static const GRect tiles[] = {
-	[FULL]    = {{ 57,67},{5,5}},
-	[CORNER0] = {{ 57, 1},{5,5}},
-	[CORNER1] = {{ 56, 6},{5,5}},
-	[CORNER2] = {{ 56,10},{5,5}}
-};
-
 static const GRect fonts[3][128] = {
 	[BIG] = {
 		[' '] = {{ 1, 1},{12,14}}, // Space -> 0 -> default
@@ -50,7 +42,12 @@ static const GRect fonts[3][128] = {
 		['2'] = {{21, 1},{12,14}}, ['3'] = {{34, 1},{12,14}},
 		['4'] = {{47, 1},{ 9,14}}, ['5'] = {{ 1,16},{12,14}},
 		['6'] = {{14,16},{12,14}}, ['7'] = {{27,16},{ 9,14}},
-		['8'] = {{37,16},{12,14}}, ['9'] = {{50,16},{12,14}}
+		['8'] = {{37,16},{12,14}}, ['9'] = {{50,16},{12,14}},
+		// Tiles used to scalue up BIG font
+		[FULL]    = {{ 57,67},{5,5}},
+		[CORNER0] = {{ 57, 1},{5,5}},
+		[CORNER1] = {{ 56, 6},{5,5}},
+		[CORNER2] = {{ 56,10},{5,5}}
 	},
 	[SMALL] = {
 		['A'] = {{ 0,31},{6,8}}, ['a'] = {{ 0,31},{6,8}},
@@ -261,8 +258,8 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 
 			for (; bx<maxbx; bx++) {
 				if (!GET_BIT(*pixels,
-					     tiles[tile].origin.x + (bx%RES),
-					     tiles[tile].origin.y + (by%RES)))
+					     fonts[BIG][tile].origin.x + (bx%RES),
+					     fonts[BIG][tile].origin.y + (by%RES)))
 					continue;
 
 				SET_BIT(buf, bx, by);
@@ -280,8 +277,8 @@ get_glyph(enum font font, char c, uint8_t **pixels)
 {
 	GRect glyph;
 
-	// Ignore non ASCII
-	if (c > 128)
+	// Ignore non ASCII and white characters
+	if (c > 128 || c < ' ')
 		c = ' ';
 
 	glyph = fonts[font][(int)c];
