@@ -1,9 +1,10 @@
 #include <pebble.h>
 
 #define CONFKEY 1
+#define BMPW (64/8)	// Bitmaps width in bytes
 
-#define GET_BIT(buf, w, x, y) (((buf)[((w)/8)*(y) + (x)/8]) & (0x80 >> (x)%8))
-#define SET_BIT(buf, w, x, y) (((buf)[((w)/8)*(y) + (x)/8]) |= (0x80 >> (x)%8))
+#define GET_BIT(buf, x, y) (((buf)[BMPW*(y) + (x)/8]) &  (0x80 >> (x)%8))
+#define SET_BIT(buf, x, y) (((buf)[BMPW*(y) + (x)/8]) |= (0x80 >> (x)%8))
 
 enum font { BIG, SMALL, TINY };
 enum tile { EMPTY, FULL, CORNER0, CORNER1, CORNER2 };
@@ -159,7 +160,7 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 {
 	static uint8_t RES = 5;
 	// Enough to fit scalled up (5 times) glyph of BIG font encoded in 1bit way
-	static uint8_t buf[64*70] = {};
+	static uint8_t buf[8*70] = {};
 	GRect scaled;
 	uint8_t x, y, maxx, maxy;
 	uint8_t bx, by, maxbx, maxby;
@@ -179,7 +180,7 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 
 	for (y=glyph.origin.y; y<maxy; y++)
 	for (x=glyph.origin.x; x<maxx; x++) {
-		pixel = GET_BIT(*pixels, 64, x, y);
+		pixel = GET_BIT(*pixels, x, y);
 		tile = EMPTY;
 
 		if (pixel) {
@@ -187,14 +188,14 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 		} else {
 			neighbors = 0;
 
-			if (GET_BIT(*pixels, 64, x-1, y-1)) neighbors |= 0b10000000;
-			if (GET_BIT(*pixels, 64, x  , y-1)) neighbors |= 0b01000000;
-			if (GET_BIT(*pixels, 64, x+1, y-1)) neighbors |= 0b00100000;
-			if (GET_BIT(*pixels, 64, x-1, y  )) neighbors |= 0b00010000;
-			if (GET_BIT(*pixels, 64, x+1, y  )) neighbors |= 0b00001000;
-			if (GET_BIT(*pixels, 64, x-1, y+1)) neighbors |= 0b00000100;
-			if (GET_BIT(*pixels, 64, x  , y+1)) neighbors |= 0b00000010;
-			if (GET_BIT(*pixels, 64, x+1, y+1)) neighbors |= 0b00000001;
+			if (GET_BIT(*pixels, x-1, y-1)) neighbors |= 0b10000000;
+			if (GET_BIT(*pixels, x  , y-1)) neighbors |= 0b01000000;
+			if (GET_BIT(*pixels, x+1, y-1)) neighbors |= 0b00100000;
+			if (GET_BIT(*pixels, x-1, y  )) neighbors |= 0b00010000;
+			if (GET_BIT(*pixels, x+1, y  )) neighbors |= 0b00001000;
+			if (GET_BIT(*pixels, x-1, y+1)) neighbors |= 0b00000100;
+			if (GET_BIT(*pixels, x  , y+1)) neighbors |= 0b00000010;
+			if (GET_BIT(*pixels, x+1, y+1)) neighbors |= 0b00000001;
 
 			switch (neighbors) {
 			case 0b11010000: tile = CORNER0; break;
@@ -214,12 +215,12 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 			maxbx = bx + RES;
 
 			for (; bx<maxbx; bx++) {
-				if (!GET_BIT(*pixels, 64,
+				if (!GET_BIT(*pixels,
 					     tiles[tile].origin.x + (bx%RES),
 					     tiles[tile].origin.y + (by%RES)))
 					continue;
 
-				SET_BIT(buf, 64, bx, by);
+				SET_BIT(buf, bx, by);
 			}
 		}
 	}
@@ -325,7 +326,7 @@ print_font(GContext *ctx, GRect rect,
 				maxx = info.max_x;
 
 			for (x=rect.origin.x; x < maxx && px < maxpx; x++, px++) {
-				if (!GET_BIT(pixels, 64, px, py))
+				if (!GET_BIT(pixels, px, py))
 					continue;
 
 				if (dither > map[y%8][x%8])
