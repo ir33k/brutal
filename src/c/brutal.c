@@ -8,7 +8,7 @@
 
 enum font { BIG, SMALL, TINY };
 enum tile { EMPTY, FULL, CORNER0, CORNER1, CORNER2 };
-enum direction { UP, RIGHT, DOWN, LEFT };
+enum direction { UP, RIGHT, DOWN, LEFT, HORIZONTAL };
 enum vibe { SILENT, SHORT, LONG, DOUBLE };
 enum layer { BODY, HOURS, MINUTES, SIDE, BOTTOM };
 enum fmt { BATTERY, STEPS, COPY };
@@ -28,11 +28,19 @@ static uint8_t battery = 0;
 static HealthValue steps = 0;
 
 static GRect bounds[] = {
+#ifdef PBL_RECT
 	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
 	[HOURS] = {{5*2+4, 5}, {PBL_DISPLAY_WIDTH-5*3-4, 70}},
 	[MINUTES] = {{5*2+4, 5*2+70}, {PBL_DISPLAY_WIDTH-5*3-4, 70}},
 	[SIDE] = {{5, 5}, {4, 70*2+5}},
 	[BOTTOM] = {{5, 5*3+70*2}, {PBL_DISPLAY_WIDTH-5*2, 8}}
+#else
+	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
+	[HOURS] = {{(PBL_DISPLAY_WIDTH-60*2-5)/2, 15}, {60*2+5, 70}},
+	[MINUTES] = {{(PBL_DISPLAY_WIDTH-60*2-5)/2, 60}, {60*2+5, 70}},
+	[SIDE] = {{(PBL_DISPLAY_WIDTH-45*2-5)/2, 60+70+5*3+8}, {45*2+5, 5}},
+	[BOTTOM] = {{(PBL_DISPLAY_WIDTH-60*2-5)/2, 60+70+5}, {60*2+5, 8}}
+#endif
 };
 
 static const GRect fonts[3][128] = {
@@ -324,14 +332,26 @@ print_font(GContext *ctx, GRect rect,
 	if (len == 0)
 		return;
 
+#ifndef PBL_RECT
+	direction = HORIZONTAL;
+#endif
+
 	switch (direction) {
+	case RIGHT:
+	case DOWN:
+		break;
 	case LEFT:
+	case HORIZONTAL:
 		offset = rect.size.w;
 		offset -= (len-1) * spacing;
 		for (i=0; i<len; i++) {
 			glyph = get_glyph(font, str[i], &pixels);
 			offset -= glyph.size.w;
 		}
+
+		if (direction == HORIZONTAL)
+			offset /= 2;
+
 		rect.origin.x += offset;
 		rect.size.w -= offset;
 		break;
@@ -344,9 +364,6 @@ print_font(GContext *ctx, GRect rect,
 		}
 		rect.origin.y += offset;
 		rect.size.h -= offset;
-		break;
-	case RIGHT:
-	case DOWN:
 		break;
 	}
 
@@ -383,6 +400,7 @@ print_font(GContext *ctx, GRect rect,
 			break;
 		case RIGHT:
 		case LEFT:
+		case HORIZONTAL:
 			rect.origin.x += glyph.size.w + spacing;
 			break;
 		}
@@ -426,6 +444,8 @@ Hours(Layer *_layer, GContext *ctx)
 		buf[1] = 0;
 	}
 
+
+#ifdef PBL_RECT
 	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, 5, opacity);
 
 	if (opacity == 255) {
@@ -441,6 +461,18 @@ Hours(Layer *_layer, GContext *ctx)
 	graphics_context_set_fill_color(ctx, config.bg);
 	graphics_fill_rect(ctx, rect, 0, GCornerNone);
 	print_font(ctx, bounds[HOURS], SMALL, LEFT, buf, 2, 255);
+#else
+	print_font(ctx, bounds[HOURS], BIG, HORIZONTAL, buf, 5, config.shadow);
+
+	len = strlen(buf);
+	rect.origin.x = bounds[HOURS].size.w/2 - (len*8 +2)/2;
+	rect.origin.y = 0;
+	rect.size.w = len*8 +2;
+	rect.size.h = 10;
+	graphics_context_set_fill_color(ctx, config.bg);
+	graphics_fill_rect(ctx, rect, 0, GCornerNone);
+	print_font(ctx, bounds[HOURS], SMALL, HORIZONTAL, buf, 2, 255);
+#endif
 }
 
 static void
@@ -454,8 +486,10 @@ Minutes(Layer *_layer, GContext *ctx)
 
 	print_font(ctx, bounds[MINUTES], BIG, LEFT, buf, 5, 255);
 
+#ifdef PBL_RECT
 	if (opacity == 255)
 		print_font(ctx, bounds[MINUTES], BIG, RIGHT, buf, 5, config.shadow);
+#endif
 }
 
 static void
@@ -487,16 +521,24 @@ Bottom(Layer *_layer, GContext *ctx)
 static void
 Unobstructed(AnimationProgress _p, void *win)
 {
+	static int16_t minutes_y = 0;
+	static int16_t bottom_y = 0;
 	Layer *root;
 	GRect rect0, rect1;
 	int16_t offset;
+
+	if (!minutes_y)
+		minutes_y = bounds[MINUTES].origin.y;
+
+	if (!bottom_y)
+		bottom_y = bounds[BOTTOM].origin.y;
 
 	root = window_get_root_layer((Window *) win);
 	rect0 = layer_get_bounds(root);
 	rect1 = layer_get_unobstructed_bounds(root);
 
-	bounds[MINUTES].origin.y = 5*2+70;
-	bounds[BOTTOM].origin.y = 5*3+70*2;
+	bounds[MINUTES].origin.y = minutes_y;
+	bounds[BOTTOM].origin.y = bottom_y;
 	opacity = 255;
 	offset = rect0.size.h - rect1.size.h;
 	if (offset > 0) {
@@ -683,7 +725,7 @@ main()
 	config.bt_off = SILENT;
 	config.each_hour = SILENT;
 	config.pad_h = false;
-	config.shadow = 16;
+	config.shadow = PBL_IF_ROUND_ELSE(32, 16);
 	persist_read_data(CONFKEY, &config, sizeof config);
 	configure();
 	app_message_register_inbox_received(Received);

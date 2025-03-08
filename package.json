@@ -1,7 +1,7 @@
 {
   "name": "brutal",
   "author": "irek",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "keywords": [
     "pebble-watchface",
     "hackathon2",
@@ -21,6 +21,7 @@
     "targetPlatforms": [
       "aplite",
       "basalt",
+      "chalk",
       "diorite"
     ],
     "watchapp": {
