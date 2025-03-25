@@ -721,6 +721,9 @@ Tap(AccelAxisType _axis, int32_t _direction)
 
 	count = 0;
 
+	layer_mark_dirty(bottom);
+	layer_mark_dirty(side);
+
 	app_timer_register(1000, Timer, &count);
 }
 
