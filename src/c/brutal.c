@@ -1,3 +1,5 @@
+/* TODO(irek): Support Emery platform display dimensions. */
+
 #include <pebble.h>
 
 #define CONFKEY 1
@@ -695,6 +697,33 @@ Received(DictionaryIterator *di, void *_ctx)
 	configure();
 }
 
+void
+Timer(void *ctx)
+{
+	uint8_t *count;
+
+	count = ctx;
+	(*count)++;
+
+	layer_mark_dirty(bottom);
+	layer_mark_dirty(side);
+
+	if (*count > 5)
+		return;
+
+	app_timer_register(1000, Timer, count);
+}
+
+static void
+Tap(AccelAxisType _axis, int32_t _direction)
+{
+	static uint8_t count;
+
+	count = 0;
+
+	app_timer_register(1000, Timer, &count);
+}
+
 int
 main()
 {
@@ -742,6 +771,9 @@ main()
 	// macro doing nothing.  In result the variable "handlers" is
 	// never used and I'm getting compailer error.
 	(void)handlers;
+
+	// Tap
+	accel_tap_service_subscribe(Tap);
 
 	// Main
 	app_event_loop();
