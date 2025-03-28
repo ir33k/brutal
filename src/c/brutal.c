@@ -1,12 +1,37 @@
-/* TODO(irek): Support Emery platform display dimensions. */
-
 #include <pebble.h>
 
-#define CONFKEY 1
-#define BMPW (64/8)	// Bitmaps width in bytes
+#ifdef PBL_PLATFORM_EMERY
+	#define PBL_IF_EMERY_ELSE(if_true, if_false) (if_true)
+#else
+	#define PBL_IF_EMERY_ELSE(if_true, if_false) (if_false)
+#endif
 
-#define GET_BIT(buf, x, y) (((buf)[BMPW*(y) + (x)/8]) &  (0x80 >> (x)%8))
-#define SET_BIT(buf, x, y) (((buf)[BMPW*(y) + (x)/8]) |= (0x80 >> (x)%8))
+#define CONFKEY 1
+#define WIDTH PBL_DISPLAY_WIDTH
+#define HEIGHT PBL_DISPLAY_HEIGHT
+#define PADDING 5	// Distance from screen edges
+#define MARGIN PBL_IF_EMERY_ELSE(7, 5)	// Distance between big numbers
+
+// SCALE tells how many times big font should be scalled up.  This number
+// not only influence BIGH and BIGW, the max width and height of big font
+// numbers, but also the BUFW but more indirectly.
+#define SCALE PBL_IF_EMERY_ELSE(7, 5)
+#define BIGH (14*SCALE)
+#define BIGW (12*SCALE)
+
+// Width in pixels of resource bitmap image with fonts glyphs and buffer
+// used for resizing big font.  The latter has to be wide enought to fit
+// in width the biggest big font number after it is scalled up.  It's
+// important that those widths can be divided by 8.
+#define BMPW 64
+#define BUFW PBL_IF_EMERY_ELSE(88, 64)
+
+// GET_BIT returns non 0 value for bit set to 1 at X,Y position in BUF,
+// being a 1bit image of W width.  Similarly SET_BIT set that bit to 1.
+// Those macros are used many many times when rendering fonts, so >>3
+// (shift right 3 times) is used to simulate divide by 8 in optimal way.
+#define GET_BIT(buf,w,x,y) (((buf)[((w)>>3)*(y)+((x)>>3)]) &  (0x80 >> (x)%8))
+#define SET_BIT(buf,w,x,y) (((buf)[((w)>>3)*(y)+((x)>>3)]) |= (0x80 >> (x)%8))
 
 enum font { BIG, SMALL, TINY };
 enum tile { EMPTY, FULL, CORNER0, CORNER1, CORNER2 };
@@ -17,7 +42,7 @@ enum fmt { BATTERY, STEPS, COPY };
 
 static struct {
 	GColor bg, fg;
-	char side[32], bottom[32];
+	char side[64], bottom[64];
 	enum vibe bt_on, bt_off, each_hour;
 	bool pad_h;
 	uint8_t shadow;
@@ -31,17 +56,17 @@ static HealthValue steps = 0;
 
 static GRect bounds[] = {
 #ifdef PBL_RECT
-	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
-	[HOURS] = {{5*2+4, 5}, {PBL_DISPLAY_WIDTH-5*3-4, 70}},
-	[MINUTES] = {{5*2+4, 5*2+70}, {PBL_DISPLAY_WIDTH-5*3-4, 70}},
-	[SIDE] = {{5, 5}, {4, 70*2+5}},
-	[BOTTOM] = {{5, 5*3+70*2}, {PBL_DISPLAY_WIDTH-5*2, 8}}
+	[BODY] = {{0, 0}, {WIDTH, HEIGHT}},
+	[HOURS] = {{WIDTH-(BIGW*2+MARGIN+PADDING), PADDING}, {BIGW*2+MARGIN, BIGH}},
+	[MINUTES] = {{WIDTH-(BIGW*2+MARGIN+PADDING), PADDING+BIGH+MARGIN}, {BIGW*2+MARGIN, BIGH}},
+	[SIDE] = {{PADDING, PADDING}, {4, BIGH*2+MARGIN}},
+	[BOTTOM] = {{PADDING, PADDING+BIGH*2+MARGIN*2}, {WIDTH-PADDING*2, 8}}
 #else
-	[BODY] = {{0, 0}, {PBL_DISPLAY_WIDTH, PBL_DISPLAY_HEIGHT}},
-	[HOURS] = {{(PBL_DISPLAY_WIDTH-60*2-5)/2, 15}, {60*2+5, 70}},
-	[MINUTES] = {{(PBL_DISPLAY_WIDTH-60*2-5)/2, 60}, {60*2+5, 70}},
-	[SIDE] = {{(PBL_DISPLAY_WIDTH-45*2-5)/2, 60+70+5*3+8}, {45*2+5, 5}},
-	[BOTTOM] = {{(PBL_DISPLAY_WIDTH-60*2-5)/2, 60+70+5}, {60*2+5, 8}}
+	[BODY] = {{0, 0}, {WIDTH, HEIGHT}},
+	[HOURS] = {{(WIDTH-60*2-5)/2, 15}, {60*2+5, BIGH}},
+	[MINUTES] = {{(WIDTH-60*2-5)/2, 60}, {60*2+5, BIGH}},
+	[SIDE] = {{(WIDTH-45*2-5)/2, 60+BIGH+5*3+8}, {45*2+5, 5}},
+	[BOTTOM] = {{(WIDTH-60*2-5)/2, 60+BIGH+5}, {60*2+5, 8}}
 #endif
 };
 
@@ -54,10 +79,10 @@ static const GRect fonts[3][128] = {
 		['6'] = {{14,16},{12,14}}, ['7'] = {{27,16},{ 9,14}},
 		['8'] = {{37,16},{12,14}}, ['9'] = {{50,16},{12,14}},
 		// Tiles used to scalue up BIG font
-		[FULL]    = {{ 57,67},{5,5}},
-		[CORNER0] = {{ 57, 1},{5,5}},
-		[CORNER1] = {{ 56, 6},{5,5}},
-		[CORNER2] = {{ 56,10},{5,5}}
+		[FULL]    = {{49,67},{7,7}},
+		[CORNER0] = {{PBL_IF_EMERY_ELSE(57, 59),1},{7,7}},
+		[CORNER1] = {{57, 8},{7,7}},
+		[CORNER2] = {{PBL_IF_EMERY_ELSE(57, 59),67},{7,7}}
 	},
 	[SMALL] = {
 		['A'] = {{ 0,31},{6,8}}, ['a'] = {{ 0,31},{6,8}},
@@ -210,20 +235,19 @@ draw_pixel(GBitmapDataRowInfo info, int16_t x, GColor color)
 static GRect
 scale_glyph(GRect glyph, uint8_t **pixels)
 {
-	static uint8_t RES = 5;
-	// Enough to fit scalled up (5 times) glyph of BIG font encoded in 1bit way
-	static uint8_t buf[BMPW*70] = {};
+	// Enough to fit scalled up (SCALE times) glyph of BIG font encoded in 1bit way
+	static uint8_t buf[BUFW * BIGH] = {};
 	GRect scaled;
-	uint8_t x, y, maxx, maxy;
-	uint8_t bx, by, maxbx, maxby;
+	uint16_t x, y, maxx, maxy;
+	uint16_t bx, by, maxbx, maxby;
 	uint8_t pixel;
 	uint8_t neighbors;
 	enum tile tile;
 
 	scaled.origin.x = 0;
 	scaled.origin.y = 0;
-	scaled.size.w = glyph.size.w * RES;
-	scaled.size.h = glyph.size.h * RES;
+	scaled.size.w = glyph.size.w * SCALE;
+	scaled.size.h = glyph.size.h * SCALE;
 
 	maxx = glyph.origin.x + glyph.size.w;
 	maxy = glyph.origin.y + glyph.size.h;
@@ -232,7 +256,7 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 
 	for (y=glyph.origin.y; y<maxy; y++)
 	for (x=glyph.origin.x; x<maxx; x++) {
-		pixel = GET_BIT(*pixels, x, y);
+		pixel = GET_BIT(*pixels, BMPW, x, y);
 		tile = EMPTY;
 
 		if (pixel) {
@@ -240,14 +264,14 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 		} else {
 			neighbors = 0;
 
-			if (GET_BIT(*pixels, x-1, y-1)) neighbors |= 0b10000000;
-			if (GET_BIT(*pixels, x  , y-1)) neighbors |= 0b01000000;
-			if (GET_BIT(*pixels, x+1, y-1)) neighbors |= 0b00100000;
-			if (GET_BIT(*pixels, x-1, y  )) neighbors |= 0b00010000;
-			if (GET_BIT(*pixels, x+1, y  )) neighbors |= 0b00001000;
-			if (GET_BIT(*pixels, x-1, y+1)) neighbors |= 0b00000100;
-			if (GET_BIT(*pixels, x  , y+1)) neighbors |= 0b00000010;
-			if (GET_BIT(*pixels, x+1, y+1)) neighbors |= 0b00000001;
+			if (GET_BIT(*pixels, BMPW, x-1, y-1)) neighbors |= 0b10000000;
+			if (GET_BIT(*pixels, BMPW, x  , y-1)) neighbors |= 0b01000000;
+			if (GET_BIT(*pixels, BMPW, x+1, y-1)) neighbors |= 0b00100000;
+			if (GET_BIT(*pixels, BMPW, x-1, y  )) neighbors |= 0b00010000;
+			if (GET_BIT(*pixels, BMPW, x+1, y  )) neighbors |= 0b00001000;
+			if (GET_BIT(*pixels, BMPW, x-1, y+1)) neighbors |= 0b00000100;
+			if (GET_BIT(*pixels, BMPW, x  , y+1)) neighbors |= 0b00000010;
+			if (GET_BIT(*pixels, BMPW, x+1, y+1)) neighbors |= 0b00000001;
 
 			switch (neighbors) {
 			case 0b11010000: tile = CORNER0; break;
@@ -259,20 +283,21 @@ scale_glyph(GRect glyph, uint8_t **pixels)
 		if (tile == EMPTY)
 			continue;
 
-		by = (y - glyph.origin.y) * RES;
-		maxby = by + RES;
+		by = (y - glyph.origin.y) * SCALE;
+		maxby = by + SCALE;
 
 		for (; by<maxby; by++) {
-			bx = (x - glyph.origin.x) * RES;
-			maxbx = bx + RES;
+			bx = (x - glyph.origin.x) * SCALE;
+			maxbx = bx + SCALE;
 
 			for (; bx<maxbx; bx++) {
 				if (!GET_BIT(*pixels,
-					     fonts[BIG][tile].origin.x + (bx%RES),
-					     fonts[BIG][tile].origin.y + (by%RES)))
+				             BMPW,
+					     fonts[BIG][tile].origin.x + (bx%SCALE),
+					     fonts[BIG][tile].origin.y + (by%SCALE)))
 					continue;
 
-				SET_BIT(buf, bx, by);
+				SET_BIT(buf, BUFW, bx, by);
 			}
 		}
 	}
@@ -327,7 +352,7 @@ print_font(GContext *ctx, GRect rect,
 	GBitmapDataRowInfo info;
 	int16_t x, y, maxx, maxy;
 	int16_t px, py, maxpx, maxpy;
-	uint8_t *pixels;
+	uint8_t *pixels, w;
 
 	len = strlen(str);
 
@@ -387,7 +412,8 @@ print_font(GContext *ctx, GRect rect,
 				maxx = info.max_x;
 
 			for (x=rect.origin.x; x < maxx && px < maxpx; x++, px++) {
-				if (!GET_BIT(pixels, px, py))
+				w = font == BIG ? BUFW : BMPW;
+				if (!GET_BIT(pixels, w, px, py))
 					continue;
 
 				if (dither > map[y%8][x%8])
@@ -448,10 +474,10 @@ Hours(Layer *_layer, GContext *ctx)
 
 
 #ifdef PBL_RECT
-	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, 5, opacity);
+	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, MARGIN, opacity);
 
 	if (opacity == 255) {
-		print_font(ctx, bounds[HOURS], BIG, RIGHT, buf, 5, config.shadow);
+		print_font(ctx, bounds[HOURS], BIG, RIGHT, buf, MARGIN, config.shadow);
 		return;
 	}
 
@@ -486,37 +512,37 @@ Minutes(Layer *_layer, GContext *ctx)
 	tm = now();
 	strftime(buf, sizeof buf, "%M", tm);
 
-	print_font(ctx, bounds[MINUTES], BIG, LEFT, buf, 5, 255);
+	print_font(ctx, bounds[MINUTES], BIG, LEFT, buf, MARGIN, 255);
 
 #ifdef PBL_RECT
 	if (opacity == 255)
-		print_font(ctx, bounds[MINUTES], BIG, RIGHT, buf, 5, config.shadow);
+		print_font(ctx, bounds[MINUTES], BIG, RIGHT, buf, MARGIN, config.shadow);
 #endif
 }
 
 static void
 Side(Layer *_layer, GContext *ctx)
 {
-	char fmt[32], buf[32];
+	char fmt[64], buf[64];
 	struct tm *tm;
 
 	tm = now();
 	parsefmt(fmt, sizeof fmt, config.side);
 	strftime(buf, sizeof buf, fmt, tm);
-	buf[20] = 0;
+	buf[PBL_IF_EMERY_ELSE(30, 21)] = 0;
 	print_font(ctx, bounds[SIDE], TINY, DOWN, buf, 2, 255);
 }
 
 static void
 Bottom(Layer *_layer, GContext *ctx)
 {
-	char fmt[32], buf[32];
+	char fmt[64], buf[64];
 	struct tm *tm;
 
 	tm = now();
 	parsefmt(fmt, sizeof fmt, config.bottom);
 	strftime(buf, sizeof buf, fmt, tm);
-	buf[17] = 0;
+	buf[PBL_IF_EMERY_ELSE(25, 18)] = 0;
 	print_font(ctx, bounds[BOTTOM], SMALL, LEFT, buf, 2, 255);
 }
 
@@ -546,7 +572,7 @@ Unobstructed(AnimationProgress _p, void *win)
 	if (offset > 0) {
 		bounds[MINUTES].origin.y -= offset;
 		bounds[BOTTOM].origin.y -= offset;
-		opacity -= normal(offset, 0, 51, 0, 225);
+		opacity -= normal(offset, 0, PBL_IF_EMERY_ELSE(59, 51), 0, 225);
 	}
 }
 
@@ -772,7 +798,7 @@ main()
 	Unobstructed(0, win);
 	// NOTE(irek): Aplite has unobstructed_area_service_subscribe
 	// macro doing nothing.  In result the variable "handlers" is
-	// never used and I'm getting compailer error.
+	// never used and compailer complains.
 	(void)handlers;
 
 	// Tap

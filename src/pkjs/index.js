@@ -43,8 +43,14 @@ new Clay([
         "defaultValue": "Bottom text"
       },
       {
+	"capabilities": ["NOT_PLATFORM_EMERY"],
         "type": "text",
         "defaultValue": "Fits up to 17 characters."
+      },
+      {
+	"capabilities": ["PLATFORM_EMERY"],
+        "type": "text",
+        "defaultValue": "Fits up to 24 characters."
       },
       {
         "id": "bottom-select",
@@ -83,8 +89,14 @@ new Clay([
         "defaultValue": "Side text"
       },
       {
+	"capabilities": ["NOT_PLATFORM_EMERY"],
         "type": "text",
         "defaultValue": "Fits up to 20 characters."
+      },
+      {
+	"capabilities": ["PLATFORM_EMERY"],
+        "type": "text",
+        "defaultValue": "Fits up to 29 characters."
       },
       {
         "id": "side-select",
