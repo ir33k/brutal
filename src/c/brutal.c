@@ -11,6 +11,8 @@
 #define HEIGHT PBL_DISPLAY_HEIGHT
 #define PADDING 5	// Distance from screen edges
 #define MARGIN IF_EMERY_ELSE(7, 5)	// Distance between big numbers
+#define SIDE_MAX IF_EMERY_ELSE(29, 20)
+#define BOTTOM_MAX IF_EMERY_ELSE(24, 17)
 
 // SCALE tells how many times big font should be scalled up.  This number
 // not only influence BIGH and BIGW, the max width and height of big font
@@ -57,6 +59,7 @@ static GRect get_glyph(enum font font, char c, uint8_t **pixels);
 static void print_font(GContext *ctx, GRect rect,
                        enum font font, enum direction direction, char *str,
                        uint8_t spacing, uint8_t dither);
+static void spread(char *str, uint8_t max);
 static void vibe(enum vibe type);
 static void Body(Layer*, GContext*);
 static void Hours(Layer*, GContext*);
@@ -467,6 +470,33 @@ print_font(GContext *ctx, GRect rect,
 }
 
 static void
+spread(char *str, uint8_t max)
+{
+	uint8_t len, i, j, space;
+
+	len = strlen(str);
+
+	if (len >= max)
+		return;
+
+	for (i=0; i<len; i++)
+		if (str[i] == '|')
+			break;
+
+	if (i == len)	/* Not found */
+		return;
+
+	str[i] = ' ';	/* Hide divider */
+	space = max - len;
+
+	for (j=len; j>i; j--)
+		str[j+space] = str[j];
+
+	for (j+=space; j>i; j--)
+		str[j] = ' ';
+}
+
+static void
 vibe(enum vibe type)
 {
 	switch (type) {
@@ -558,7 +588,9 @@ Side(Layer *_layer, GContext *ctx)
 	tm = now();
 	parsefmt(fmt, sizeof fmt, config.side);
 	strftime(buf, sizeof buf, fmt, tm);
-	buf[IF_EMERY_ELSE(30, 21)] = 0;
+	buf[SIDE_MAX] = 0;
+	spread(buf, SIDE_MAX);
+
 	print_font(ctx, bounds[SIDE], TINY, DOWN, buf, 2, 255);
 }
 
@@ -571,7 +603,9 @@ Bottom(Layer *_layer, GContext *ctx)
 	tm = now();
 	parsefmt(fmt, sizeof fmt, config.bottom);
 	strftime(buf, sizeof buf, fmt, tm);
-	buf[IF_EMERY_ELSE(25, 18)] = 0;
+	buf[BOTTOM_MAX] = 0;
+	spread(buf, BOTTOM_MAX);
+
 	print_font(ctx, bounds[BOTTOM], SMALL, LEFT, buf, 2, 255);
 }
 
@@ -763,7 +797,7 @@ Timer(void *ctx)
 	layer_mark_dirty(bottom);
 	layer_mark_dirty(side);
 
-	if (*count > 5)
+	if (*count > 4)
 		return;
 
 	app_timer_register(1000, Timer, count);
