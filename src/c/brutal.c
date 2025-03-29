@@ -48,6 +48,35 @@ static struct {
 	uint8_t shadow;
 } config;
 
+static int normal(int value, int vmin, int vmax, int min, int max);
+static struct tm *now();
+static void parsefmt(char *dst, unsigned sz, char *fmt);
+static void draw_pixel(GBitmapDataRowInfo info, int16_t x, GColor color);
+static GRect scale_glyph(GRect glyph, uint8_t **pixels);
+static GRect get_glyph(enum font font, char c, uint8_t **pixels);
+static void print_font(GContext *ctx, GRect rect,
+                       enum font font, enum direction direction, char *str,
+                       uint8_t spacing, uint8_t dither);
+static void vibe(enum vibe type);
+static void Body(Layer*, GContext*);
+static void Hours(Layer*, GContext*);
+static void Minutes(Layer*, GContext*);
+static void Side(Layer*, GContext*);
+static void Bottom(Layer*, GContext*);
+static void Unobstructed(AnimationProgress, void*);
+static void Load(Window*);
+static void Unload(Window*);
+static void Tick(struct tm*, TimeUnits);
+static void Bluetooth(bool connected);
+static void Battery(BatteryChargeState);
+#if defined(PBL_HEALTH)
+static void Health(HealthEventType, void*);
+#endif
+static void configure();
+static void Received(DictionaryIterator*, void*);
+void Timer(void*);
+static void Tap(AccelAxisType axis, int32_t direction);
+
 static Layer *body, *hours, *minutes, *side, *bottom;
 static GBitmap *glyphs;
 static uint8_t opacity = 255;
@@ -157,7 +186,7 @@ static const GRect fonts[3][128] = {
 	}
 };
 
-int
+static int
 normal(int v, int vmin, int vmax, int min, int max)
 {
 	return ((float)(v-vmin) / (float)(vmax-vmin)) * (float)(max-min) + min;
@@ -332,8 +361,8 @@ get_glyph(enum font font, char c, uint8_t **pixels)
 
 static void
 print_font(GContext *ctx, GRect rect,
-	   enum font font, enum direction direction, char *str,
-	   uint8_t spacing, uint8_t dither)
+           enum font font, enum direction direction, char *str,
+           uint8_t spacing, uint8_t dither)
 {
 	static const uint8_t map[8][8] = {
 		{   0, 128,  32, 160,   8, 136,  40, 168 },
