@@ -1,21 +1,21 @@
 #include <pebble.h>
 
 #ifdef PBL_PLATFORM_EMERY
-	#define PBL_IF_EMERY_ELSE(if_true, if_false) (if_true)
+	#define IF_EMERY_ELSE(if_true, if_false) (if_true)
 #else
-	#define PBL_IF_EMERY_ELSE(if_true, if_false) (if_false)
+	#define IF_EMERY_ELSE(if_true, if_false) (if_false)
 #endif
 
 #define CONFKEY 1
 #define WIDTH PBL_DISPLAY_WIDTH
 #define HEIGHT PBL_DISPLAY_HEIGHT
 #define PADDING 5	// Distance from screen edges
-#define MARGIN PBL_IF_EMERY_ELSE(7, 5)	// Distance between big numbers
+#define MARGIN IF_EMERY_ELSE(7, 5)	// Distance between big numbers
 
 // SCALE tells how many times big font should be scalled up.  This number
 // not only influence BIGH and BIGW, the max width and height of big font
 // numbers, but also the BUFW but more indirectly.
-#define SCALE PBL_IF_EMERY_ELSE(7, 5)
+#define SCALE IF_EMERY_ELSE(7, 5)
 #define BIGH (14*SCALE)
 #define BIGW (12*SCALE)
 
@@ -24,7 +24,7 @@
 // in width the biggest big font number after it is scalled up.  It's
 // important that those widths can be divided by 8.
 #define BMPW 64
-#define BUFW PBL_IF_EMERY_ELSE(88, 64)
+#define BUFW IF_EMERY_ELSE(88, 64)
 
 // GET_BIT returns non 0 value for bit set to 1 at X,Y position in BUF,
 // being a 1bit image of W width.  Similarly SET_BIT set that bit to 1.
@@ -80,9 +80,9 @@ static const GRect fonts[3][128] = {
 		['8'] = {{37,16},{12,14}}, ['9'] = {{50,16},{12,14}},
 		// Tiles used to scalue up BIG font
 		[FULL]    = {{49,67},{7,7}},
-		[CORNER0] = {{PBL_IF_EMERY_ELSE(57, 59),1},{7,7}},
+		[CORNER0] = {{IF_EMERY_ELSE(57, 59),1},{7,7}},
 		[CORNER1] = {{57, 8},{7,7}},
-		[CORNER2] = {{PBL_IF_EMERY_ELSE(57, 59),67},{7,7}}
+		[CORNER2] = {{IF_EMERY_ELSE(57, 59),67},{7,7}}
 	},
 	[SMALL] = {
 		['A'] = {{ 0,31},{6,8}}, ['a'] = {{ 0,31},{6,8}},
@@ -529,7 +529,7 @@ Side(Layer *_layer, GContext *ctx)
 	tm = now();
 	parsefmt(fmt, sizeof fmt, config.side);
 	strftime(buf, sizeof buf, fmt, tm);
-	buf[PBL_IF_EMERY_ELSE(30, 21)] = 0;
+	buf[IF_EMERY_ELSE(30, 21)] = 0;
 	print_font(ctx, bounds[SIDE], TINY, DOWN, buf, 2, 255);
 }
 
@@ -542,7 +542,7 @@ Bottom(Layer *_layer, GContext *ctx)
 	tm = now();
 	parsefmt(fmt, sizeof fmt, config.bottom);
 	strftime(buf, sizeof buf, fmt, tm);
-	buf[PBL_IF_EMERY_ELSE(25, 18)] = 0;
+	buf[IF_EMERY_ELSE(25, 18)] = 0;
 	print_font(ctx, bounds[BOTTOM], SMALL, LEFT, buf, 2, 255);
 }
 
@@ -572,7 +572,7 @@ Unobstructed(AnimationProgress _p, void *win)
 	if (offset > 0) {
 		bounds[MINUTES].origin.y -= offset;
 		bounds[BOTTOM].origin.y -= offset;
-		opacity -= normal(offset, 0, PBL_IF_EMERY_ELSE(59, 51), 0, 225);
+		opacity -= normal(offset, 0, IF_EMERY_ELSE(59, 51), 0, 225);
 	}
 }
 
