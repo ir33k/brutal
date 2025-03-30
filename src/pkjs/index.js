@@ -53,6 +53,11 @@ new Clay([
         "defaultValue": "Fits up to 24 characters."
       },
       {
+	"capabilities": ["RECT"],
+        "type": "text",
+        "defaultValue": "You can divide text to left and right parts with single comma (,) character."
+      },
+      {
         "id": "bottom-select",
         "type": "select",
         "label": "Presets",
@@ -68,7 +73,8 @@ new Clay([
           { "value": "%Y.%m.%d",      "label": "2022.11.18" },
           { "value": "%d.%m.%Y",      "label": "18.11.2022" },
           { "value": "Battery: #B%%", "label": "Battery: 75%" },
-          { "value": "Steps: #S",     "label": "Steps: 500" }
+          { "value": "Steps: #S",     "label": "Steps: 500" },
+          { "value": "%B %d,%S",      "label": "Date with seconds" }
         ]
       },
       {
@@ -91,7 +97,7 @@ new Clay([
       {
 	"capabilities": ["NOT_PLATFORM_EMERY"],
         "type": "text",
-        "defaultValue": "Fits up to 20 characters."
+        "defaultValue": "Fits up to 21 characters."
       },
       {
 	"capabilities": ["PLATFORM_EMERY"],
@@ -99,24 +105,30 @@ new Clay([
         "defaultValue": "Fits up to 29 characters."
       },
       {
+	"capabilities": ["RECT"],
+        "type": "text",
+        "defaultValue": "You can divide text to top and bottom parts with single comma (,) character."
+      },
+      {
         "id": "side-select",
         "type": "select",
         "label": "Presets",
         "defaultValue": "%B %Y",
         "options": [
-          { "value": "",           "label": "NOTHING" },
-          { "value": "%B %Y",      "label": "DEFAULT: November 2024" },
-          { "value": "%p",         "label": "AM/PM" },
-          { "value": "%A %d",      "label": "Monday 18" },
-          { "value": "%a %d",      "label": "Sun 18" },
-          { "value": "%B %d",      "label": "November 18" },
-          { "value": "%b %d",      "label": "Nov 18" },
-          { "value": "%m/%d/%y",   "label": "11/18/24" },
-          { "value": "%Y.%m.%d",   "label": "2022.11.18" },
-          { "value": "%d.%m.%Y",   "label": "18.11.2022" },
-          { "value": "Rebble %Y",  "label": "Rebble 2022" },
-          { "value": "Battery #B", "label": "Battery 75" },
-          { "value": "Steps #S",   "label": "Steps 500" }
+          { "value": "",              "label": "NOTHING" },
+          { "value": "%B %Y",         "label": "DEFAULT: November 2024" },
+          { "value": "%p",            "label": "AM/PM" },
+          { "value": "%A %d",         "label": "Monday 18" },
+          { "value": "%a %d",         "label": "Sun 18" },
+          { "value": "%B %d",         "label": "November 18" },
+          { "value": "%b %d",         "label": "Nov 18" },
+          { "value": "%m/%d/%y",      "label": "11/18/24" },
+          { "value": "%Y.%m.%d",      "label": "2022.11.18" },
+          { "value": "%d.%m.%Y",      "label": "18.11.2022" },
+          { "value": "Rebble %Y",     "label": "Rebble 2022" },
+          { "value": "Battery #B",    "label": "Battery 75" },
+          { "value": "Steps #S",      "label": "Steps 500" },
+          { "value": "Steps #S,#B%%", "label": "Steps with battery" }
         ]
       },
       {

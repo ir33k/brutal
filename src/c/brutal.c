@@ -11,7 +11,7 @@
 #define HEIGHT PBL_DISPLAY_HEIGHT
 #define PADDING 5	// Distance from screen edges
 #define MARGIN IF_EMERY_ELSE(7, 5)	// Distance between big numbers
-#define SIDE_MAX IF_EMERY_ELSE(29, 20)
+#define SIDE_MAX IF_EMERY_ELSE(29, 21)
 #define BOTTOM_MAX IF_EMERY_ELSE(24, 17)
 
 // SCALE tells how many times big font should be scalled up.  This number
@@ -59,7 +59,9 @@ static GRect get_glyph(enum font font, char c, uint8_t **pixels);
 static void print_font(GContext *ctx, GRect rect,
                        enum font font, enum direction direction, char *str,
                        uint8_t spacing, uint8_t dither);
+#ifdef PBL_RECT
 static void spread(char *str, uint8_t max);
+#endif
 static void vibe(enum vibe type);
 static void Body(Layer*, GContext*);
 static void Hours(Layer*, GContext*);
@@ -469,6 +471,7 @@ print_font(GContext *ctx, GRect rect,
 	graphics_release_frame_buffer(ctx, fb);
 }
 
+#ifdef PBL_RECT
 static void
 spread(char *str, uint8_t max)
 {
@@ -480,7 +483,7 @@ spread(char *str, uint8_t max)
 		return;
 
 	for (i=0; i<len; i++)
-		if (str[i] == '|')
+		if (str[i] == ',')
 			break;
 
 	if (i == len)	/* Not found */
@@ -495,6 +498,7 @@ spread(char *str, uint8_t max)
 	for (j+=space; j>i; j--)
 		str[j] = ' ';
 }
+#endif
 
 static void
 vibe(enum vibe type)
@@ -589,8 +593,9 @@ Side(Layer *_layer, GContext *ctx)
 	parsefmt(fmt, sizeof fmt, config.side);
 	strftime(buf, sizeof buf, fmt, tm);
 	buf[SIDE_MAX] = 0;
+#ifdef PBL_RECT
 	spread(buf, SIDE_MAX);
-
+#endif
 	print_font(ctx, bounds[SIDE], TINY, DOWN, buf, 2, 255);
 }
 
@@ -604,8 +609,9 @@ Bottom(Layer *_layer, GContext *ctx)
 	parsefmt(fmt, sizeof fmt, config.bottom);
 	strftime(buf, sizeof buf, fmt, tm);
 	buf[BOTTOM_MAX] = 0;
+#ifdef PBL_RECT
 	spread(buf, BOTTOM_MAX);
-
+#endif
 	print_font(ctx, bounds[BOTTOM], SMALL, LEFT, buf, 2, 255);
 }
 
