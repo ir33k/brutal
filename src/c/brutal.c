@@ -48,6 +48,7 @@ static struct {
 	enum vibe bt_on, bt_off, each_hour;
 	bool pad_h;
 	uint8_t shadow;
+	int8_t seconds;
 } config;
 
 static int normal(int value, int vmin, int vmax, int min, int max);
@@ -87,6 +88,7 @@ static GBitmap *glyphs;
 static uint8_t opacity = 255;
 static uint8_t battery = 0;
 static HealthValue steps = 0;
+static AppTimer *timer = 0;
 
 static GRect bounds[] = {
 #ifdef PBL_RECT
@@ -686,6 +688,10 @@ Unload(Window *_win)
 static void
 Tick(struct tm *_time, TimeUnits change)
 {
+	if (change & SECOND_UNIT) {
+		layer_mark_dirty(bottom);
+		layer_mark_dirty(side);
+	}
 	if (change & MINUTE_UNIT) {
 		layer_mark_dirty(minutes);
 	}
@@ -753,6 +759,24 @@ configure()
 	}
 #endif
 
+	if (timer)
+		app_timer_cancel(timer);
+
+	switch (config.seconds) {
+	case -1:
+		accel_tap_service_unsubscribe();
+		tick_timer_service_subscribe(SECOND_UNIT, Tick);
+		break;
+	case 0:
+		accel_tap_service_unsubscribe();
+		tick_timer_service_subscribe(MINUTE_UNIT, Tick);
+		break;
+	default:
+		accel_tap_service_subscribe(Tap);
+		tick_timer_service_subscribe(MINUTE_UNIT, Tick);
+		break;
+	}
+
 	layer_mark_dirty(body);
 }
 
@@ -788,6 +812,9 @@ Received(DictionaryIterator *di, void *_ctx)
 	if ((tuple = dict_find(di, MESSAGE_KEY_SHADOW)))
 		config.shadow = tuple->value->int32;
 
+	if ((tuple = dict_find(di, MESSAGE_KEY_SECONDS)))
+		config.seconds = atoi(tuple->value->cstring);
+
 	persist_write_data(CONFKEY, &config, sizeof config);
 	configure();
 }
@@ -803,8 +830,10 @@ Timer(void *ctx)
 	layer_mark_dirty(bottom);
 	layer_mark_dirty(side);
 
-	if (*count > 4)
+	if (*count >= config.seconds) {
+		timer = 0;
 		return;
+	}
 
 	app_timer_register(1000, Timer, count);
 }
@@ -814,12 +843,15 @@ Tap(AccelAxisType _axis, int32_t _direction)
 {
 	static uint8_t count;
 
+	if (config.seconds <= 0)
+		return;
+
 	count = 0;
 
 	layer_mark_dirty(bottom);
 	layer_mark_dirty(side);
 
-	app_timer_register(1000, Timer, &count);
+	timer = app_timer_register(1000, Timer, &count);
 }
 
 int
@@ -841,6 +873,9 @@ main()
 	// Time
 	now = time(0);
 	Tick(localtime(&now), DAY_UNIT);
+	// Tick timer is owerwritten in configure() but this is a
+	// default just in case there is something wrong with config
+	// which might happen when phone is disconnected.
 	tick_timer_service_subscribe(MINUTE_UNIT, Tick);
 
 	// Config
@@ -869,9 +904,6 @@ main()
 	// macro doing nothing.  In result the variable "handlers" is
 	// never used and compailer complains.
 	(void)handlers;
-
-	// Tap
-	accel_tap_service_subscribe(Tap);
 
 	// Main
 	app_event_loop();

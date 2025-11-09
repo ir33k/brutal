@@ -193,7 +193,26 @@ new Clay([
         "min": 0,
         "max": 128,
         "step": 4
-      }
+      },
+      {
+        "messageKey": "SECONDS",
+        "type": "select",
+        "label": "Seconds",
+	"description": "First option disables seconds update; time, side and bottom texts are updated only each minute. Second option enables updates each second for side and bottom texts, use %S in their format to show seconds. Every other option enables seconds update after Tap (whist shake) for some amount of time to avoid draining battery.",
+	// NOTE(Irek): Select input always return value as a string.
+	// I have to do atoi() conversion in main code anyway.
+        "defaultValue": "0",
+        "options": [
+          { "value": "0",  "label": "Disabled" },
+          { "value": "-1", "label": "Enable" },
+          { "value": "5",  "label": "5 seconds" },
+          { "value": "10", "label": "10 seconds" },
+          { "value": "15", "label": "15 seconds" },
+          { "value": "30", "label": "30 seconds" },
+          { "value": "60", "label": "1 min" },
+          { "value": "300", "label": "5 min" }
+        ]
+      },
     ]
   },
   {
