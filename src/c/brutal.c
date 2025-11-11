@@ -88,7 +88,6 @@ static GBitmap *glyphs;
 static uint8_t opacity = 255;
 static uint8_t battery = 0;
 static HealthValue steps = 0;
-static AppTimer *timer = 0;
 
 static GRect bounds[] = {
 #ifdef PBL_RECT
@@ -759,23 +758,7 @@ configure()
 	}
 #endif
 
-	if (timer)
-		app_timer_cancel(timer);
-
-	switch (config.seconds) {
-	case -1:
-		accel_tap_service_unsubscribe();
-		tick_timer_service_subscribe(SECOND_UNIT, Tick);
-		break;
-	case 0:
-		accel_tap_service_unsubscribe();
-		tick_timer_service_subscribe(MINUTE_UNIT, Tick);
-		break;
-	default:
-		accel_tap_service_subscribe(Tap);
-		tick_timer_service_subscribe(MINUTE_UNIT, Tick);
-		break;
-	}
+	tick_timer_service_subscribe(config.seconds == -1 ? SECOND_UNIT : MINUTE_UNIT, Tick);
 
 	layer_mark_dirty(body);
 }
@@ -830,10 +813,8 @@ Timer(void *ctx)
 	layer_mark_dirty(bottom);
 	layer_mark_dirty(side);
 
-	if (*count >= config.seconds) {
-		timer = 0;
+	if (*count >= config.seconds)
 		return;
-	}
 
 	app_timer_register(1000, Timer, count);
 }
@@ -851,7 +832,7 @@ Tap(AccelAxisType _axis, int32_t _direction)
 	layer_mark_dirty(bottom);
 	layer_mark_dirty(side);
 
-	timer = app_timer_register(1000, Timer, &count);
+	app_timer_register(1000, Timer, &count);
 }
 
 int
@@ -904,6 +885,9 @@ main()
 	// macro doing nothing.  In result the variable "handlers" is
 	// never used and compailer complains.
 	(void)handlers;
+
+	// Tap
+	accel_tap_service_subscribe(Tap);
 
 	// Main
 	app_event_loop();
