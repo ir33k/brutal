@@ -750,7 +750,7 @@ configure()
 	}
 
 #if defined(PBL_HEALTH)
-	if (strstr(config.bottom, "#B") || strstr(config.side, "#B")) {
+	if (strstr(config.bottom, "#S") || strstr(config.side, "#S")) {
 		health_service_events_subscribe(Health, NULL);
 		Health(HealthEventSignificantUpdate, 0);
 	} else {
