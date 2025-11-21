@@ -522,48 +522,46 @@ Body(Layer *_layer, GContext *ctx)
 static void
 Hours(Layer *_layer, GContext *ctx)
 {
-	char buf[4];
+	char buf[4], *pt;
 	struct tm *tm;
 	GRect rect;
 	unsigned len;
 
 	tm = now();
 	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
+	pt = buf;
 
-	// Remove leading 0
-	if (config.pad_h && buf[0] == '0') {
-		buf[0] = buf[1];
-		buf[1] = 0;
-	}
-
+	// Skip leading 0
+	pt += config.pad_h * buf[0] == '0';
 
 #ifdef PBL_RECT
-	print_font(ctx, bounds[HOURS], BIG, LEFT, buf, MARGIN, opacity);
-
-	if (opacity == 255) {
+	if (opacity == 255)
 		print_font(ctx, bounds[HOURS], BIG, RIGHT, buf, MARGIN, config.shadow);
-		return;
-	}
 
-	len = strlen(buf);
+	print_font(ctx, bounds[HOURS], BIG, LEFT, pt, MARGIN, opacity);
+
+	if (opacity == 255)
+		return;
+
+	len = strlen(pt);
 	rect.origin.x = bounds[HOURS].size.w - len*8 -2;
 	rect.origin.y = 0;
 	rect.size.w = len*8 +2;
 	rect.size.h = 10;
 	graphics_context_set_fill_color(ctx, config.bg);
 	graphics_fill_rect(ctx, rect, 0, GCornerNone);
-	print_font(ctx, bounds[HOURS], SMALL, LEFT, buf, 2, 255);
+	print_font(ctx, bounds[HOURS], SMALL, LEFT, pt, 2, 255);
 #else
 	print_font(ctx, bounds[HOURS], BIG, HORIZONTAL, buf, 5, config.shadow);
 
-	len = strlen(buf);
+	len = strlen(pt);
 	rect.origin.x = bounds[HOURS].size.w/2 - (len*8 +2)/2;
 	rect.origin.y = 0;
 	rect.size.w = len*8 +2;
 	rect.size.h = 10;
 	graphics_context_set_fill_color(ctx, config.bg);
 	graphics_fill_rect(ctx, rect, 0, GCornerNone);
-	print_font(ctx, bounds[HOURS], SMALL, HORIZONTAL, buf, 2, 255);
+	print_font(ctx, bounds[HOURS], SMALL, HORIZONTAL, pt, 2, 255);
 #endif
 }
 
