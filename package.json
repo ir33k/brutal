@@ -1,13 +1,17 @@
 {
   "name": "brutal",
   "author": "irek",
-  "version": "4.5.0",
+  "version": "4.6.0",
   "keywords": [
     "pebble-watchface",
     "hackathon2",
     "rebble",
     "repebble",
-    "brutal"
+    "brutal",
+    "brutalism",
+    "brutalist",
+    "digital",
+    "seconds"
   ],
   "private": false,
   "dependencies": {
