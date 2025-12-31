@@ -7,6 +7,7 @@
 #define FONT7H	7
 #define FONT10W	10
 #define FONT10H	10
+#define LETTERSPACING	2
 
 enum vibe {
 	VIBE_SILENT,
@@ -16,10 +17,13 @@ enum vibe {
 };
 
 typedef uint8_t		u8;
+typedef uint16_t		u16;
 typedef int8_t		i8;
 typedef int16_t		i16;
 typedef enum vibe	Vibe;
 
+static void	uppercase	(char*);
+static char*	formatstr	(char*);
 static void	vibe		(Vibe);
 static void	drawpixel	(GBitmapDataRowInfo*, i16, GColor);
 static void	dither		(Layer*, GContext*);
@@ -49,8 +53,8 @@ static struct {
 
 static struct {
 	GDrawCommandImage*	digits;
-	GFont	small;
-	GFont	tiny;
+	GFont	font10;
+	GFont	font7;
 } asset;
 
 static struct {
@@ -62,6 +66,58 @@ static struct {
 } layout;
 
 static const i16 digitswidth[10] = {60, 30, 60, 60, 45, 60, 60, 45, 60, 60};
+
+void
+uppercase(char *str)
+{
+	for (; *str; str++)
+		if (*str >= 'a' && *str <= 'z')
+			*str &= ~0x20;
+}
+
+char*
+formatstr(char *fmt)
+{
+	static char buf[64];
+	u16 i;
+
+	for (i=0; *fmt && i < sizeof buf -1; fmt++)
+		switch (*fmt) {
+		case '#':
+			fmt++;
+			break;
+		case '*':
+			fmt++;
+			break;
+		case '&':
+			fmt++;
+			break;
+		case '%':		/* avoid modyfing strftime() symbols */
+			fmt++;
+			buf[i++] = '%';
+			buf[i++] = *fmt;
+			break;
+		case 0x01: case 0x02: case 0x03: case 0x04: case 0x05:
+		case 0x06: case 0x07: case 0x08: case 0x09: case 0x0A:
+		case 0x0B: case 0x0C: case 0x0D: case 0x0E: case 0x0F:
+		case 0x10: case 0x11: case 0x12: case 0x13: case 0x14:
+		case 0x15: case 0x16: case 0x17: case 0x18: case 0x19:
+		case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E:
+		case 0x1F: case 0x7F:	/* skip white chars */
+			break;
+		case '"': case '$': case '\'':case '+': case ';':
+		case '<': case '=': case '>': case '?': case '@':
+		case '[': case '\\':case ']': case '^': case '_':
+		case '`': case '{': case '|': case '}': case '~':
+		case '(': case ')':	/* skip unsupported characters */
+			break;
+		default:
+			buf[i++] = *fmt;
+		}
+
+	buf[i] = 0;
+	return buf;
+}
 
 void
 vibe(Vibe type)
@@ -199,8 +255,8 @@ onwinload(Window *win)
 	layer_add_child(layout.body, layout.minute);
 
 	rect.origin.x = MARGIN;
-	rect.origin.y += SPACING + DIGITSH;
-	rect.size.w = PBL_DISPLAY_WIDTH - MARGIN*2;
+	rect.origin.y += SPACING + DIGITSH - LETTERSPACING;
+	rect.size.w = PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING;
 	rect.size.h = FONT10H;
 
 	layout.bottom = layer_create(rect);
@@ -208,9 +264,9 @@ onwinload(Window *win)
 	layer_add_child(layout.body, layout.bottom);
 
 	rect.origin.x = MARGIN;
-	rect.origin.y = MARGIN;
+	rect.origin.y = MARGIN - LETTERSPACING;
 	rect.size.w = FONT7W;
-	rect.size.h = PBL_DISPLAY_HEIGHT - MARGIN*2 - SPACING - FONT10H;
+	rect.size.h = PBL_DISPLAY_HEIGHT - MARGIN*2 - SPACING - FONT10H + LETTERSPACING;
 
 	layout.side = layer_create(rect);
 	layer_set_update_proc(layout.side, onside);
@@ -292,15 +348,55 @@ onminute(Layer *layer, GContext *ctx)
 void
 onbottom(Layer *layer, GContext *ctx)
 {
-	(void)layer;
-	(void)ctx;
+	time_t timestamp;
+	struct tm *tm;
+	char buf[64], *fmt;
+	GRect bounds;
+
+	timestamp = time(0);
+	tm = localtime(&timestamp);
+	bounds = layer_get_bounds(layer);
+
+	graphics_context_set_text_color(ctx, conf.fg);
+
+	// TODO(irek): Support divider AKA spread()
+
+	fmt = formatstr(conf.bottom);
+	strftime(buf, sizeof buf, fmt, tm);
+	uppercase(buf);
+	graphics_draw_text(ctx, buf, asset.font10, bounds,
+			   GTextOverflowModeWordWrap,
+			   GTextAlignmentRight, NULL);
 }
 
 void
 onside(Layer *layer, GContext *ctx)
 {
-	(void)layer;
-	(void)ctx;
+	time_t timestamp;
+	struct tm *tm;
+	char tmp[64], buf[128], *fmt;
+	GRect bounds;
+	u16 i, j;
+
+	timestamp = time(0);
+	tm = localtime(&timestamp);
+	bounds = layer_get_bounds(layer);
+
+	graphics_context_set_text_color(ctx, conf.fg);
+
+	fmt = formatstr(conf.side);
+	strftime(tmp, sizeof tmp, fmt, tm);
+	uppercase(tmp);
+
+	for (i=0, j=0; tmp[i] && j < sizeof buf - 1; i+=1) {
+		buf[j++] = tmp[i];
+		buf[j++] = '\n';
+	}
+	buf[j] = 0;
+
+	graphics_draw_text(ctx, buf, asset.font7, bounds,
+			   GTextOverflowModeWordWrap,
+			   GTextAlignmentLeft, NULL);
 }
 
 
@@ -328,8 +424,8 @@ main(void)
 
 	/* resources */
 	asset.digits = gdraw_command_image_create_with_resource(RESOURCE_ID_DIGITS);
-	asset.small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT10));
-	asset.tiny = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT7));
+	asset.font10 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT10));
+	asset.font7 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT7));
 
 	/* config */
 	conf.bg = GColorWhite;
@@ -367,8 +463,8 @@ main(void)
 	/* cleanup */
 	window_destroy(win);
 	gdraw_command_image_destroy(asset.digits);
-	fonts_unload_custom_font(asset.small);
-	fonts_unload_custom_font(asset.tiny);
+	fonts_unload_custom_font(asset.font10);
+	fonts_unload_custom_font(asset.font7);
 
 	return 0;
 }
