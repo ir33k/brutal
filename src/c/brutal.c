@@ -1,6 +1,12 @@
 #include <pebble.h>
 
+#define MARGIN	5
 #define SPACING	5
+#define DIGITSH	70
+#define FONT7W	5
+#define FONT7H	7
+#define FONT10W	10
+#define FONT10H	10
 
 enum vibe {
 	VIBE_SILENT,
@@ -15,6 +21,10 @@ typedef int16_t		i16;
 typedef enum vibe	Vibe;
 
 static void	vibe		(Vibe);
+static void	drawpixel	(GBitmapDataRowInfo*, i16, GColor);
+static void	dither		(Layer*, GContext*);
+static void	drawdigits	(char*, GPoint offset, GContext*);
+static void	drawshadow	(char*, GPoint offset, GContext*);
 static void	onwinload	(Window*);
 static void	onwinunload	(Window*);
 static void	onbody		(Layer*, GContext*);
@@ -65,6 +75,102 @@ vibe(Vibe type)
 }
 
 void
+drawpixel(GBitmapDataRowInfo *info, i16 x, GColor color)
+{
+#if defined(PBL_COLOR)
+	memset(info->data + x, color.argb, 1);
+#elif defined(PBL_BW)
+	u8 byte  = x / 8;
+	u8 bit   = x % 8;
+	u8 value = gcolor_equal(color, GColorWhite) ? 1 : 0;
+	u8 *bp   = info->data + byte;
+	*bp ^= (-value ^ *bp) & (1 << bit);
+#endif
+}
+
+void
+dither(Layer *layer, GContext *ctx)
+{
+	static const uint8_t map[8][8] = {
+		{   0, 128,  32, 160,   8, 136,  40, 168 },
+		{ 192,  64, 224,  96, 200,  72, 232, 104 },
+		{  48, 176,  16, 144,  56, 184,  24, 152 },
+		{ 240, 112, 208,  80, 248, 120, 216,  88 },
+		{  12, 140,  44, 172,   4, 132,  36, 164 },
+		{ 204,  76, 236, 108, 196,  68, 228, 100 },
+		{  60, 188,  28, 156,  52, 180,  20, 148 },
+		{ 252, 124, 220,  92, 244, 116, 212,  84 }
+	};
+	GRect rect;
+	GBitmap *fb;
+	GBitmapDataRowInfo info;
+	i16 x, y, maxx, maxy;
+	u8 amount;
+
+	amount = 255 - conf.shadow;
+	rect = layer_get_frame(layer);
+	maxy = rect.origin.y + rect.size.h;
+	fb = graphics_capture_frame_buffer(ctx);
+
+	for (y = rect.origin.y; y < maxy; y++) {
+		info = gbitmap_get_data_row_info(fb, y);
+		maxx = rect.origin.x + rect.size.w;
+
+		if (info.max_x < maxx)
+			maxx = info.max_x;
+
+		for (x = rect.origin.x; x < maxx; x++)
+			if (amount > map[y%8][x%8])
+				drawpixel(&info, x, conf.bg);
+	}
+
+	graphics_release_frame_buffer(ctx, fb);
+}
+
+void
+drawdigits(char *str, GPoint offset, GContext *ctx)
+{
+	GDrawCommandList *cmds;
+	GDrawCommand *cmd;
+	i16 i, digit;
+
+	cmds = gdraw_command_image_get_command_list(asset.digits);
+
+	for (i = strlen(str); i; i--) {
+		digit = str[i-1] - '0';
+		cmd = gdraw_command_list_get_command(cmds, digit);
+		gdraw_command_set_hidden(cmd, false);
+		gdraw_command_set_stroke_color(cmd, conf.fg);
+		gdraw_command_set_fill_color(cmd, conf.fg);
+		offset.x -= digitswidth[digit];
+		gdraw_command_image_draw(ctx, asset.digits, offset);
+		offset.x -= SPACING;
+		gdraw_command_set_hidden(cmd, true);
+	}
+}
+
+void
+drawshadow(char *str, GPoint offset, GContext *ctx)
+{
+	GDrawCommandList *cmds;
+	GDrawCommand *cmd;
+	i16 i, digit;
+
+	cmds = gdraw_command_image_get_command_list(asset.digits);
+
+	for (i=0; str[i]; i++) {
+		digit = str[i] - '0';
+		cmd = gdraw_command_list_get_command(cmds, digit);
+		gdraw_command_set_hidden(cmd, false);
+		gdraw_command_set_stroke_color(cmd, conf.fg);
+		gdraw_command_set_fill_color(cmd, conf.fg);
+		gdraw_command_image_draw(ctx, asset.digits, offset);
+		offset.x += digitswidth[digit] + SPACING;
+		gdraw_command_set_hidden(cmd, true);
+	}
+}
+
+void
 onwinload(Window *win)
 {
 	Layer *root;
@@ -77,21 +183,38 @@ onwinload(Window *win)
 	layer_set_update_proc(layout.body, onbody);
 	layer_add_child(root, layout.body);
 
+	rect.origin.x = MARGIN + FONT7W + SPACING;
+	rect.origin.y = MARGIN;
+	rect.size.w = PBL_DISPLAY_WIDTH - MARGIN*2 - SPACING - FONT7W;
+	rect.size.h = DIGITSH;
+
 	layout.hour = layer_create(rect);
 	layer_set_update_proc(layout.hour, onhour);
-	layer_add_child(root, layout.hour);
+	layer_add_child(layout.body, layout.hour);
+
+	rect.origin.y += SPACING + DIGITSH;
 
 	layout.minute = layer_create(rect);
 	layer_set_update_proc(layout.minute, onminute);
-	layer_add_child(root, layout.minute);
+	layer_add_child(layout.body, layout.minute);
+
+	rect.origin.x = MARGIN;
+	rect.origin.y += SPACING + DIGITSH;
+	rect.size.w = PBL_DISPLAY_WIDTH - MARGIN*2;
+	rect.size.h = FONT10H;
 
 	layout.bottom = layer_create(rect);
 	layer_set_update_proc(layout.bottom, onbottom);
-	layer_add_child(root, layout.bottom);
+	layer_add_child(layout.body, layout.bottom);
+
+	rect.origin.x = MARGIN;
+	rect.origin.y = MARGIN;
+	rect.size.w = FONT7W;
+	rect.size.h = PBL_DISPLAY_HEIGHT - MARGIN*2 - SPACING - FONT10H;
 
 	layout.side = layer_create(rect);
 	layer_set_update_proc(layout.side, onside);
-	layer_add_child(root, layout.side);
+	layer_add_child(layout.body, layout.side);
 }
 
 void
@@ -116,41 +239,54 @@ onhour(Layer *layer, GContext *ctx)
 {
 	time_t timestamp;
 	struct tm *tm;
-	char buf[8];
-	GDrawCommandList *cmds;
-	GDrawCommand *cmd;
+	char buf[8], *pt;
 	GRect bounds;
 	GPoint offset;
-	i16 i, digit;
 
 	timestamp = time(0);
 	tm = localtime(&timestamp);
 	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
 
+	pt = buf;
+
+	if (conf.padh && pt[0] == '0')
+		pt++;
+
 	bounds = layer_get_bounds(layer);
-	cmds = gdraw_command_image_get_command_list(asset.digits);
+
+	offset.x = 0;
+	offset.y = 0;
+	drawshadow(buf, offset, ctx);
+	dither(layer, ctx);
+
 	offset.x = bounds.size.w;
 	offset.y = 0;
-
-	for (i = strlen(buf); i; i--) {
-		digit = buf[i-1] - '0';
-		cmd = gdraw_command_list_get_command(cmds, digit);
-		gdraw_command_set_hidden(cmd, false);
-		gdraw_command_set_stroke_color(cmd, conf.fg);
-		gdraw_command_set_fill_color(cmd, conf.fg);
-		offset.x -= digitswidth[digit];
-		gdraw_command_image_draw(ctx, asset.digits, offset);
-		offset.x -= SPACING;
-		gdraw_command_set_hidden(cmd, true);
-	}
-	
+	drawdigits(pt, offset, ctx);
 }
 
 void
 onminute(Layer *layer, GContext *ctx)
 {
-	(void)layer;
-	(void)ctx;
+	time_t timestamp;
+	struct tm *tm;
+	char buf[8];
+	GRect bounds;
+	GPoint offset;
+
+	timestamp = time(0);
+	tm = localtime(&timestamp);
+	strftime(buf, sizeof buf, "%M", tm);
+
+	bounds = layer_get_bounds(layer);
+
+	offset.x = 0;
+	offset.y = 0;
+	drawshadow(buf, offset, ctx);
+	dither(layer, ctx);
+
+	offset.x = bounds.size.w;
+	offset.y = 0;
+	drawdigits(buf, offset, ctx);
 }
 
 void
