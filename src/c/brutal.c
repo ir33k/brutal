@@ -1,5 +1,7 @@
 #include <pebble.h>
 
+#define SPACING	5
+
 enum vibe {
 	VIBE_SILENT,
 	VIBE_SHORT,
@@ -9,6 +11,7 @@ enum vibe {
 
 typedef uint8_t		u8;
 typedef int8_t		i8;
+typedef int16_t		i16;
 typedef enum vibe	Vibe;
 
 static void	vibe		(Vibe);
@@ -47,6 +50,8 @@ static struct {
 	Layer*	bottom;
 	Layer*	side;
 } layout;
+
+static const i16 digitswidth[10] = {60, 30, 60, 60, 45, 60, 60, 45, 60, 60};
 
 void
 vibe(Vibe type)
@@ -109,8 +114,36 @@ onbody(Layer *layer, GContext *ctx)
 void
 onhour(Layer *layer, GContext *ctx)
 {
-	(void)layer;
-	(void)ctx;
+	time_t timestamp;
+	struct tm *tm;
+	char buf[8];
+	GDrawCommandList *cmds;
+	GDrawCommand *cmd;
+	GRect bounds;
+	GPoint offset;
+	i16 i, digit;
+
+	timestamp = time(0);
+	tm = localtime(&timestamp);
+	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
+
+	bounds = layer_get_bounds(layer);
+	cmds = gdraw_command_image_get_command_list(asset.digits);
+	offset.x = bounds.size.w;
+	offset.y = 0;
+
+	for (i = strlen(buf); i; i--) {
+		digit = buf[i-1] - '0';
+		cmd = gdraw_command_list_get_command(cmds, digit);
+		gdraw_command_set_hidden(cmd, false);
+		gdraw_command_set_stroke_color(cmd, conf.fg);
+		gdraw_command_set_fill_color(cmd, conf.fg);
+		offset.x -= digitswidth[digit];
+		gdraw_command_image_draw(ctx, asset.digits, offset);
+		offset.x -= SPACING;
+		gdraw_command_set_hidden(cmd, true);
+	}
+	
 }
 
 void
@@ -185,7 +218,7 @@ main(void)
 
 	/* time */
 	timestamp = time(0);
-	ontick(localtime(&timestamp), MINUTE_UNIT);
+	ontick(localtime(&timestamp), DAY_UNIT | HOUR_UNIT | MINUTE_UNIT);
 	/* Tick timer is overwritten in configure() but this is a
 	 * default just in case there is something wrong with config
 	 * which might happen when phone is disconnected, probably.
