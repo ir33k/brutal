@@ -25,9 +25,7 @@
     "targetPlatforms": [
       "aplite",
       "basalt",
-      "chalk",
-      "diorite",
-      "emery"
+      "diorite"
     ],
     "watchapp": {
       "watchface": true
@@ -50,16 +48,10 @@
     "resources": {
       "media": [
         {
-          "menuIcon": "true",
-          "type": "png",
-          "name": "MENU_ICON",
-          "file": "icon.png"
-        },
-        {
-          "type": "bitmap",
-          "name": "GLYPHS",
-          "file": "glyphs.png"
-        }
+	  "type": "bitmap",
+	  "name": "TEST",
+	  "file": "test.png"
+	}
       ]
     }
   }
