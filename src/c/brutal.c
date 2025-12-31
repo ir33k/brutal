@@ -1,13 +1,20 @@
 #include <pebble.h>
 
-#define MARGIN	5
-#define SPACING	5
-#define DIGITSH	70
-#define FONT7W	5
-#define FONT7H	7
-#define FONT10W	10
-#define FONT10H	10
+#define CONFKEY		1
+#define CHRONOGRAPHKEY	2
+#define WEATHERKEY	3
+#define MARGIN		5
+#define SPACING		5
+#define DIGITSH		70
+#define FONT7W		4
+#define FONT7H		7
+#define FONT10W		8
+#define FONT10H		10
 #define LETTERSPACING	2
+#define SIDEMAX ((PBL_DISPLAY_HEIGHT - MARGIN*2 - FONT10H - SPACING + LETTERSPACING*2) / FONT7H)
+#define BOTTOMMAX ((PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING) / FONT10W)
+#define NA		"N/A"		/* not available */
+#define WEATHERINTERVAL (30*60)
 
 enum vibe {
 	VIBE_SILENT,
@@ -16,15 +23,83 @@ enum vibe {
 	VIBE_DOUBLE,
 };
 
+enum icon {
+	ICON_DEGREE     = 0x22,
+	ICON_SUN        = 0x23,
+	ICON_CLEARSKY   = 0x24,
+	ICON_CLOUDS     = 0x26,
+	ICON_FOG        = 0x27,
+	ICON_DRIZZLE    = 0x28,
+	ICON_RAIN       = 0x29,
+	ICON_STORM      = 0x2B,
+	ICON_SNOW       = 0x2C,
+	ICON_BATTERY0   = 0x3B,
+	ICON_BATTERY20  = 0x3C,
+	ICON_BATTERY40  = 0x3D,
+	ICON_BATTERY60  = 0x3E,
+	ICON_BATTERY80  = 0x3F,
+	ICON_BATTERY100 = 0x40,
+	ICON_CHARGING   = 0x5B,
+	ICON_WARNING    = 0x5C,
+	ICON_HEART      = 0x5D,
+	ICON_SHOE       = 0x5F,
+	ICON_QUIET      = 0x60,
+};
+
+/* https://open-meteo.com/en/docs#weather_variable_documentation */
+enum weather {		/* WMO Weather interpretation codes */
+	WMO_CLEAR_SKY                = 0,
+	WMO_MAINLY_CLEAR             = 1,
+	WMO_PARTLY_CLOUDY            = 2,
+	WMO_OVERCAST                 = 3,
+	WMO_FOG                      = 45,
+	WMO_DEPOSITING_RIME_FOG      = 48,
+	WMO_DRIZZLE_LIGHT            = 51,
+	WMO_DRIZZLE_MODERATE         = 53,
+	WMO_DRIZZLE_DENSE            = 55,
+	WMO_FREEZING_DRIZZLE_LIGHT   = 56,
+	WMO_FREEZING_DRIZZLE_DENSE   = 57,
+	WMO_RAIN_SLIGHT              = 61,
+	WMO_RAIN_MODERATE            = 63,
+	WMO_RAIN_HEAVY               = 65,
+	WMO_FREEZING_RAIN_LIGHT      = 66,
+	WMO_FREEZING_RAIN_HEAVY      = 67,
+	WMO_SNOW_FALL_SLIGHT         = 71,
+	WMO_SNOW_FALL_MODERATE       = 73,
+	WMO_SNOW_FALL_HEAVY          = 75,
+	WMO_SNOW_GRAINS              = 77,
+	WMO_RAIN_SHOWERS_SLIGHT      = 80,
+	WMO_RAIN_SHOWERS_MODERATE    = 81,
+	WMO_RAIN_SHOWERS_VIOLENT     = 82,
+	WMO_SNOW_SHOWERS_SLIGHT      = 85,
+	WMO_SNOW_SHOWERS_HEAVY       = 86,
+	WMO_THUNDERSTORM             = 95,
+	WMO_THUNDERSTORM_SLIGHT_HAIL = 96,
+	WMO_THUNDERSTORM_HEAVY_HAIL  = 99,
+	/* not part of WMO standard */
+	WMO_UNKNOWN                  = 100,
+};
+
 typedef uint8_t		u8;
-typedef uint16_t		u16;
+typedef uint16_t	u16;
+typedef uint32_t	u32;
 typedef int8_t		i8;
 typedef int16_t		i16;
+typedef int32_t		i32;
 typedef enum vibe	Vibe;
+typedef enum icon	Icon;
+typedef enum weather	Weather;
 
+#ifdef PBL_RECT
+static void	spread		(char*, u8 max);
+#endif
+static void	configure	();
 static void	uppercase	(char*);
 static char*	formatstr	(char*);
 static void	vibe		(Vibe);
+static void	weatherget	();
+static char*	weather2str	(Weather);
+static Icon	weather2ico	(Weather);
 static void	drawpixel	(GBitmapDataRowInfo*, i16, GColor);
 static void	dither		(Layer*, GContext*);
 static void	drawdigits	(char*, GPoint offset, GContext*);
@@ -37,6 +112,14 @@ static void	onminute	(Layer*, GContext*);
 static void	onbottom	(Layer*, GContext*);
 static void	onside		(Layer*, GContext*);
 static void	ontick		(struct tm*, TimeUnits);
+static void	oninbox		(DictionaryIterator*, void*);
+static void	onbattery	(BatteryChargeState);
+static void	onconnection	(bool);
+static void	ontap		(AccelAxisType, i32);
+static void	ontimer		(void*);
+#ifdef PBL_HEALTH
+static void	onhealth	(HealthEventType, void*);
+#endif
 
 static struct {
 	GColor	bg;
@@ -49,6 +132,7 @@ static struct {
 	bool	padh;
 	u8	shadow;
 	i8	seconds;
+	u8	tempunit;	/* C/F (Celsius/Fahrenheit) */
 } conf;
 
 static struct {
@@ -65,7 +149,111 @@ static struct {
 	Layer*	side;
 } layout;
 
+static struct {
+	u8	battery;
+	bool	charging;
+	bool	connected;
+	time_t	chronograph;
+	bool	useweather;
+	time_t	lastweather;
+} state = {0};
+
+static struct {
+	HealthValue	steps;
+	HealthValue	dista;		/* distance in meters */
+	HealthValue	heart;
+	HealthValue	sleep;
+	HealthValue	rest;		/* restful / deep sleep */
+} health = {0};
+
+static struct {
+	char	temp[8];
+	char	temphigh[8];
+	char	templow[8];
+	u8	code;
+	u8	aireu;		/* 0-100 air quality index in europe */
+	u16	airus;		/* 0-500 air quality index in us */
+} weather = {NA, NA, NA, WMO_UNKNOWN, 0, 0};
+
 static const i16 digitswidth[10] = {60, 30, 60, 60, 45, 60, 60, 45, 60, 60};
+
+#ifdef PBL_RECT
+void
+spread(char *str, u8 max)
+{
+	u8 len, i, j, space;
+
+	len = strlen(str);
+
+	if (len >= max)
+		return;
+
+	for (i=0; i<len; i++)
+		if (str[i] == ',')
+			break;
+
+	if (i == len)	/* not found */
+		return;
+
+	str[i] = ' ';	/* hide divider */
+	space = max - len;
+
+	for (j=len; j>i; j--)
+		str[j+space] = str[j];
+
+	for (j+=space; j>i; j--)
+		str[j] = ' ';
+}
+#endif
+
+void
+configure()
+{
+	
+	if (strstr(conf.side, "#b") || strstr(conf.bottom, "#b") ||
+	    strstr(conf.side, "*b") || strstr(conf.bottom, "*b") ||
+	    strstr(conf.side, "*c") || strstr(conf.bottom, "*c")) {
+		battery_state_service_subscribe(onbattery);
+		onbattery(battery_state_service_peek());
+	} else {
+		battery_state_service_unsubscribe();
+	}
+
+	if (strchr(conf.side, '&') || strchr(conf.bottom, '&')) {
+		if (!state.useweather) {
+			state.useweather = true;
+			state.lastweather = 0;
+		}
+	} else {
+		state.useweather = false;
+	}
+
+	if (state.useweather || conf.bton || conf.btoff ||
+	    strstr(conf.side, "*w") || strstr(conf.bottom, "*w")) {
+		connection_service_subscribe((ConnectionHandlers){ onconnection, 0 });
+		state.connected = connection_service_peek_pebble_app_connection();
+	} else {
+		connection_service_unsubscribe();
+	}
+
+	weatherget();
+
+#ifdef PBL_HEALTH
+	if (strstr(conf.side, "#s") || strstr(conf.bottom, "#s") ||
+	    strstr(conf.side, "#d") || strstr(conf.bottom, "#d") ||
+	    strstr(conf.side, "#z") || strstr(conf.bottom, "#z") ||
+	    strstr(conf.side, "#Z") || strstr(conf.bottom, "#Z") ||
+	    strstr(conf.side, "#h") || strstr(conf.bottom, "#h")) {
+		health_service_events_subscribe(onhealth, 0);
+		onhealth(HealthEventSignificantUpdate, 0);
+	} else {
+		health_service_events_unsubscribe();
+	}
+#endif
+	tick_timer_service_subscribe(conf.seconds == -1 ? SECOND_UNIT : MINUTE_UNIT, ontick);
+
+	layer_mark_dirty(layout.body);
+}
 
 void
 uppercase(char *str)
@@ -79,18 +267,122 @@ char*
 formatstr(char *fmt)
 {
 	static char buf[64];
-	u16 i;
+	char *str;
+	time_t timestamp, diff;
+	struct tm *tm;
+	i8 wday;
+	u32 i, n;
+	Icon icon;
+
+	n = sizeof buf;
+	timestamp = time(0);
+	tm = localtime(&timestamp);
 
 	for (i=0; *fmt && i < sizeof buf -1; fmt++)
 		switch (*fmt) {
-		case '#':
+		case '#':		/* pebble values */
 			fmt++;
+			switch (*fmt) {
+			case 'b':
+				i += snprintf(buf+i, n-i, "%u", state.battery);
+				break;
+			case 's':
+				i += snprintf(buf+i, n-i, "%ld", health.steps);
+				break;
+			case 'd':
+				i += snprintf(buf+i, n-i, "%ld", health.dista);
+				break;
+			case 'h':
+				i += snprintf(buf+i, n-i, "%ld", health.heart);
+				break;
+			case 'z':
+				i += snprintf(buf+i, n-i, "%ld:%.2ld",
+					      health.sleep/60/60,
+					      (health.sleep/60)%60);
+				break;
+			case 'Z':
+				i += snprintf(buf+i, n-i, "%ld:%.2ld",
+					      health.rest/60/60,
+					      (health.rest/60)%60);
+				break;
+			case 'w':
+				i += snprintf(buf+i, n-i, "MTWTFSS");
+				wday = tm->tm_wday - 1;
+				if (wday < 0) wday = 6;
+				buf[i - 7 + wday] = '*';
+				break;
+			case 'W':
+				i += snprintf(buf+i, n-i, "SMTWTFS");
+				wday = tm->tm_wday;
+				buf[i - 7 + wday] = '*';
+				break;
+			case 'c':
+				diff = timestamp - state.chronograph;
+				i += snprintf(buf+i, n-i, "%ld", diff / 60);
+				break;
+			}
 			break;
-		case '*':
+		case '*':		/* icons */
 			fmt++;
+			icon = 0;
+			switch (*fmt) {
+			case '*': icon = '*'; break;
+			case 'h': icon = ICON_HEART; break;
+			case 's': icon = ICON_SHOE; break;
+			case 'd': icon = ICON_DEGREE; break;
+			case 'q':
+				if (quiet_time_is_active())
+					icon = ICON_QUIET;
+				break;
+			case 'w':
+				if (!state.connected)
+					icon = ICON_WARNING;
+				break;
+			case 'c':
+				if (state.charging)
+					icon = ICON_CHARGING;
+				break;
+			case 'b':
+				icon = ICON_BATTERY0;
+				/**/ if (state.battery>95) icon = ICON_BATTERY100;
+				else if (state.battery>75) icon = ICON_BATTERY80;
+				else if (state.battery>55) icon = ICON_BATTERY60;
+				else if (state.battery>35) icon = ICON_BATTERY40;
+				else if (state.battery>15) icon = ICON_BATTERY20;
+				break;
+			}
+			if (icon)
+				buf[i++] = icon;
 			break;
-		case '&':
+		case '&':		/* weather */
 			fmt++;
+			switch (*fmt) {
+			case 't':
+				i += snprintf(buf+i, n-i, "%s", weather.temp);
+				break;
+			case 'h':
+				i += snprintf(buf+i, n-i, "%s", weather.temphigh);
+				break;
+			case 'l':
+				i += snprintf(buf+i, n-i, "%s", weather.templow);
+				break;
+			case 'u':
+				buf[i++] = conf.tempunit;
+				break;
+			case 'c':
+				str = weather2str(weather.code);
+				i += snprintf(buf+i, n-i, "%s", str);
+				break;
+			case 'i':
+				buf[i++] = weather2ico(weather.code);
+				break;
+			case 'a':
+				i += snprintf(buf+i, n-i, "%u", weather.aireu);
+				break;
+			case 'A':
+				i += snprintf(buf+i, n-i, "%u", weather.airus);
+				break;
+			}
 			break;
 		case '%':		/* avoid modyfing strftime() symbols */
 			fmt++;
@@ -105,11 +397,12 @@ formatstr(char *fmt)
 		case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E:
 		case 0x1F: case 0x7F:	/* skip white chars */
 			break;
-		case '"': case '$': case '\'':case '+': case ';':
-		case '<': case '=': case '>': case '?': case '@':
-		case '[': case '\\':case ']': case '^': case '_':
-		case '`': case '{': case '|': case '}': case '~':
-		case '(': case ')':	/* skip unsupported characters */
+		case '!': case '"': case '$': case '\'':case '(':
+		case ')': case '+': case ';': case '<': case '=':
+		case '>': case '?': case '@': case '[': case '\\':
+		case ']': case '^': case '_': case '`': case '{':
+		case '|': case '}': case '~':
+			/* skip unsupported characters */
 			break;
 		default:
 			buf[i++] = *fmt;
@@ -128,6 +421,100 @@ vibe(Vibe type)
 	case VIBE_LONG:   vibes_long_pulse(); break;
 	case VIBE_DOUBLE: vibes_double_pulse(); break;
 	}
+}
+
+void
+weatherget()
+{
+	time_t timestamp;
+	DictionaryIterator *iter;
+
+	if (!state.useweather)
+		return;
+
+	if (!state.connected)
+		return;
+
+	timestamp = time(0);
+
+	if (state.lastweather + WEATHERINTERVAL > timestamp)
+		return;
+
+	app_message_outbox_begin(&iter);
+	dict_write_data(iter, WEATHERKEY, &conf.tempunit, sizeof conf.tempunit);
+	app_message_outbox_send();
+}
+
+char*
+weather2str(u8 code)
+{
+	switch (code) {
+	case WMO_CLEAR_SKY:                return "Clear";
+	case WMO_MAINLY_CLEAR:             return "Clear";
+	case WMO_PARTLY_CLOUDY:            return "Cloudy";
+	case WMO_OVERCAST:                 return "Overcast";
+	case WMO_FOG:                      return "Fog";
+	case WMO_DEPOSITING_RIME_FOG:      return "Rime fog";
+	case WMO_DRIZZLE_LIGHT:            return "Drizzle";
+	case WMO_DRIZZLE_MODERATE:         return "Drizzle!";
+	case WMO_DRIZZLE_DENSE:            return "Drizzle!!";
+	case WMO_FREEZING_DRIZZLE_LIGHT:   return "Drizzle*";
+	case WMO_FREEZING_DRIZZLE_DENSE:   return "Drizzle*!";
+	case WMO_RAIN_SLIGHT:              return "Rain";
+	case WMO_RAIN_MODERATE:            return "Rain!";
+	case WMO_RAIN_HEAVY:               return "rain!!";
+	case WMO_FREEZING_RAIN_LIGHT:      return "Rain*";
+	case WMO_FREEZING_RAIN_HEAVY:      return "Rain*!";
+	case WMO_SNOW_FALL_SLIGHT:         return "Snow";
+	case WMO_SNOW_FALL_MODERATE:       return "Snow!";
+	case WMO_SNOW_FALL_HEAVY:          return "Snow!!";
+	case WMO_SNOW_GRAINS:              return "Snow*";
+	case WMO_RAIN_SHOWERS_SLIGHT:      return "Rain*";
+	case WMO_RAIN_SHOWERS_MODERATE:    return "Rain*!";
+	case WMO_RAIN_SHOWERS_VIOLENT:     return "Rain*!!";
+	case WMO_SNOW_SHOWERS_SLIGHT:      return "Snow*";
+	case WMO_SNOW_SHOWERS_HEAVY:       return "Snow*!!";
+	case WMO_THUNDERSTORM:             return "Storm";
+	case WMO_THUNDERSTORM_SLIGHT_HAIL: return "Storm!";
+	case WMO_THUNDERSTORM_HEAVY_HAIL:  return "Storm!!";
+	}
+	return "Unknown";
+}
+
+Icon
+weather2ico(u8 code)
+{
+	switch (code) {
+	case WMO_CLEAR_SKY:                return ICON_SUN;
+	case WMO_MAINLY_CLEAR:             return ICON_CLEARSKY;
+	case WMO_PARTLY_CLOUDY:            return ICON_CLOUDS;
+	case WMO_OVERCAST:                 return ICON_CLOUDS;
+	case WMO_FOG:                      return ICON_FOG;
+	case WMO_DEPOSITING_RIME_FOG:      return ICON_FOG;
+	case WMO_DRIZZLE_LIGHT:            return ICON_DRIZZLE;
+	case WMO_DRIZZLE_MODERATE:         return ICON_DRIZZLE;
+	case WMO_DRIZZLE_DENSE:            return ICON_DRIZZLE;
+	case WMO_FREEZING_DRIZZLE_LIGHT:   return ICON_DRIZZLE;
+	case WMO_FREEZING_DRIZZLE_DENSE:   return ICON_DRIZZLE;
+	case WMO_RAIN_SLIGHT:              return ICON_RAIN;
+	case WMO_RAIN_MODERATE:            return ICON_RAIN;
+	case WMO_RAIN_HEAVY:               return ICON_RAIN;
+	case WMO_FREEZING_RAIN_LIGHT:      return ICON_RAIN;
+	case WMO_FREEZING_RAIN_HEAVY:      return ICON_RAIN;
+	case WMO_SNOW_FALL_SLIGHT:         return ICON_SNOW;
+	case WMO_SNOW_FALL_MODERATE:       return ICON_SNOW;
+	case WMO_SNOW_FALL_HEAVY:          return ICON_SNOW;
+	case WMO_SNOW_GRAINS:              return ICON_SNOW;
+	case WMO_RAIN_SHOWERS_SLIGHT:      return ICON_RAIN;
+	case WMO_RAIN_SHOWERS_MODERATE:    return ICON_RAIN;
+	case WMO_RAIN_SHOWERS_VIOLENT:     return ICON_RAIN;
+	case WMO_SNOW_SHOWERS_SLIGHT:      return ICON_SNOW;
+	case WMO_SNOW_SHOWERS_HEAVY:       return ICON_SNOW;
+	case WMO_THUNDERSTORM:             return ICON_STORM;
+	case WMO_THUNDERSTORM_SLIGHT_HAIL: return ICON_STORM;
+	case WMO_THUNDERSTORM_HEAVY_HAIL:  return ICON_STORM;
+	}
+	return ICON_WARNING;
 }
 
 void
@@ -266,7 +653,7 @@ onwinload(Window *win)
 	rect.origin.x = MARGIN;
 	rect.origin.y = MARGIN - LETTERSPACING;
 	rect.size.w = FONT7W;
-	rect.size.h = PBL_DISPLAY_HEIGHT - MARGIN*2 - SPACING - FONT10H + LETTERSPACING;
+	rect.size.h = PBL_DISPLAY_HEIGHT - MARGIN*2 - SPACING - FONT10H + LETTERSPACING*2;
 
 	layout.side = layer_create(rect);
 	layer_set_update_proc(layout.side, onside);
@@ -359,11 +746,12 @@ onbottom(Layer *layer, GContext *ctx)
 
 	graphics_context_set_text_color(ctx, conf.fg);
 
-	// TODO(irek): Support divider AKA spread()
-
 	fmt = formatstr(conf.bottom);
 	strftime(buf, sizeof buf, fmt, tm);
 	uppercase(buf);
+#ifdef PBL_RECT
+	spread(buf, BOTTOMMAX);
+#endif
 	graphics_draw_text(ctx, buf, asset.font10, bounds,
 			   GTextOverflowModeWordWrap,
 			   GTextAlignmentRight, NULL);
@@ -387,6 +775,9 @@ onside(Layer *layer, GContext *ctx)
 	fmt = formatstr(conf.side);
 	strftime(tmp, sizeof tmp, fmt, tm);
 	uppercase(tmp);
+#ifdef PBL_RECT
+	spread(tmp, SIDEMAX);
+#endif
 
 	for (i=0, j=0; tmp[i] && j < sizeof buf - 1; i+=1) {
 		buf[j++] = tmp[i];
@@ -415,6 +806,181 @@ ontick(struct tm *_time, TimeUnits change)
 		layer_mark_dirty(layout.minute);
 }
 
+void
+oninbox(DictionaryIterator *di, void *_ctx)
+{
+	Tuple *tuple;
+	time_t timestamp;
+
+	timestamp = time(0);
+
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERTEMP))) {
+		strncpy(weather.temp, tuple->value->cstring,
+			sizeof weather.temp -1);
+		state.lastweather = timestamp;
+	}
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERTEMPHIGH))) {
+		strncpy(weather.temphigh, tuple->value->cstring,
+			sizeof weather.temphigh -1);
+		state.lastweather = timestamp;
+	}
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERTEMPLOW))) {
+		strncpy(weather.templow, tuple->value->cstring,
+			sizeof weather.templow -1);
+		state.lastweather = timestamp;
+	}
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERCODE))) {
+		weather.code = tuple->value->uint8;
+		state.lastweather = timestamp;
+	}
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERAIREU))) {
+		weather.aireu = tuple->value->uint8;
+		state.lastweather = timestamp;
+	}
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERAIRUS))) {
+		weather.airus = tuple->value->uint16;
+		state.lastweather = timestamp;
+	}
+	
+	if (dict_find(di, MESSAGE_KEY_READY))
+		state.lastweather = 0;
+
+	/* config */
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_BG)))
+		conf.bg = GColorFromHEX(tuple->value->int32);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_FG)))
+		conf.fg = GColorFromHEX(tuple->value->int32);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_SIDE)))
+		strncpy(conf.side, tuple->value->cstring,
+			sizeof conf.side -1);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_BOTTOM)))
+		strncpy(conf.bottom, tuple->value->cstring,
+			sizeof conf.bottom -1);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_BTON)))
+		conf.bton = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_BTOFF)))
+		conf.btoff = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_ONHOUR)))
+		conf.onhour = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_PADH)))
+		conf.padh = !!tuple->value->int8;
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_SHADOW)))
+		conf.shadow = tuple->value->uint8;
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_SECONDS)))
+		conf.seconds = atoi(tuple->value->cstring);
+
+	if ((tuple = dict_find(di, MESSAGE_KEY_TEMPUNIT))) {
+		conf.tempunit = tuple->value->cstring[0];
+		state.lastweather = 0;
+	}
+
+	persist_write_data(CONFKEY, &conf, sizeof conf);
+	persist_write_data(WEATHERKEY, &weather, sizeof weather);
+	configure();
+}
+
+void
+onbattery(BatteryChargeState bcs)
+{
+	state.battery = bcs.charge_percent;
+	state.charging = bcs.is_charging;
+
+	layer_mark_dirty(layout.side);
+	layer_mark_dirty(layout.bottom);
+}
+
+void
+onconnection(bool status)
+{
+	state.connected = status;
+	vibe(status ? conf.bton : conf.btoff);
+	weatherget();
+	layer_mark_dirty(layout.side);
+	layer_mark_dirty(layout.bottom);
+}
+
+void
+ontap(AccelAxisType _axis, i32 _direction)
+{
+	static u8 count;
+
+	count = 0;
+
+	state.chronograph = time(0);
+	persist_write_data(CHRONOGRAPHKEY, &state.chronograph,
+			   sizeof state.chronograph);
+
+	layer_mark_dirty(layout.side);
+	layer_mark_dirty(layout.bottom);
+
+	if (conf.seconds <= 0)
+		return;
+
+	app_timer_register(1000, ontimer, &count);
+}
+
+void
+ontimer(void *ctx)
+{
+	u8 *count;
+
+	count = ctx;
+	(*count)++;
+
+	layer_mark_dirty(layout.side);
+	layer_mark_dirty(layout.bottom);
+
+	if (*count >= conf.seconds)
+		return;
+
+	app_timer_register(1000, ontimer, count);
+}
+
+#ifdef PBL_HEALTH
+void
+onhealth(HealthEventType event, void *_ctx)
+{
+	switch (event) {
+	case HealthEventSignificantUpdate:
+		health.steps = health_service_sum_today(HealthMetricStepCount);
+		health.dista = health_service_sum_today(HealthMetricWalkedDistanceMeters);
+		health.heart = health_service_sum_today(HealthMetricHeartRateBPM);
+		health.sleep = health_service_sum_today(HealthMetricSleepSeconds);
+		health.rest = health_service_sum_today(HealthMetricSleepRestfulSeconds);
+		break;
+	case HealthEventMovementUpdate:
+		health.steps = health_service_sum_today(HealthMetricStepCount);
+		health.dista = health_service_sum_today(HealthMetricWalkedDistanceMeters);
+		break;
+	case HealthEventSleepUpdate:
+		health.sleep = health_service_sum_today(HealthMetricSleepSeconds);
+		health.rest = health_service_sum_today(HealthMetricSleepRestfulSeconds);
+		break;
+	case HealthEventMetricAlert:
+		break;
+	case HealthEventHeartRateUpdate:
+		health.heart = health_service_sum_today(HealthMetricHeartRateBPM);
+		break;
+	}
+}
+#endif
+
 int
 main(void)
 {
@@ -427,6 +993,15 @@ main(void)
 	asset.font10 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT10));
 	asset.font7 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT7));
 
+	/* window */
+	win = window_create();
+	wh.load = onwinload;
+	wh.appear = 0;
+	wh.disappear = 0;
+	wh.unload = onwinunload;
+	window_set_window_handlers(win, wh);
+	window_stack_push(win, true);
+
 	/* config */
 	conf.bg = GColorWhite;
 	conf.fg = GColorBlack;
@@ -438,15 +1013,12 @@ main(void)
 	conf.padh = false;
 	conf.shadow = 16;
 	conf.seconds = 0;
-
-	/* window */
-	win = window_create();
-	wh.load = onwinload;
-	wh.appear = 0;
-	wh.disappear = 0;
-	wh.unload = onwinunload;
-	window_set_window_handlers(win, wh);
-	window_stack_push(win, true);
+	conf.tempunit = 'C';
+	persist_read_data(CONFKEY, &conf, sizeof conf);
+	persist_read_data(WEATHERKEY, &weather, sizeof weather);
+	configure();
+	app_message_register_inbox_received(oninbox);
+	app_message_open(app_message_inbox_size_maximum(), 32);	/* TODO(irek): Magic number warning */
 
 	/* time */
 	timestamp = time(0);
@@ -456,6 +1028,10 @@ main(void)
 	 * which might happen when phone is disconnected, probably.
 	 */
 	tick_timer_service_subscribe(MINUTE_UNIT, ontick);
+	state.chronograph = timestamp;
+
+	/* services */
+	accel_tap_service_subscribe(ontap);
 
 	/* main */
 	app_event_loop();

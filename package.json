@@ -1,7 +1,7 @@
 {
   "name": "brutal",
   "author": "irek",
-  "version": "4.6.0",
+  "version": "5.0.0",
   "keywords": [
     "pebble-watchface",
     "hackathon2",
@@ -31,19 +31,28 @@
       "watchface": true
     },
     "capabilities": [
-      "health"
+      "health",
+      "location"
     ],
     "messageKeys": [
-      "BGCOLOR",
-      "FGCOLOR",
+      "BG",
+      "FG",
       "SIDE",
       "BOTTOM",
-      "VIBEBTON",
-      "VIBEBTOFF",
-      "VIBEEACHHOUR",
+      "BTON",
+      "BTOFF",
+      "ONHOUR",
       "PADH",
       "SHADOW",
-      "SECONDS"
+      "SECONDS",
+      "TEMPUNIT",
+      "WEATHERTEMP",
+      "WEATHERTEMPHIGH",
+      "WEATHERTEMPLOW",
+      "WEATHERCODE",
+      "WEATHERAIREU",
+      "WEATHERAIRUS",
+      "READY"
     ],
     "resources": {
       "media": [
