@@ -48,9 +48,19 @@
     "resources": {
       "media": [
         {
-	  "type": "bitmap",
-	  "name": "TEST",
-	  "file": "test.png"
+	  "type": "raw",
+	  "name": "DIGITS",
+	  "file": "digits.pdc"
+	},
+	{
+	  "type": "font",
+	  "name": "FONT10",
+	  "file": "font10.bdf"
+	},
+	{
+	  "type": "font",
+	  "name": "FONT7",
+	  "file": "font7.bdf"
 	}
       ]
     }

@@ -1,10 +1,63 @@
 #include <pebble.h>
 
+enum vibe {
+	VIBE_SILENT,
+	VIBE_SHORT,
+	VIBE_LONG,
+	VIBE_DOUBLE,
+};
+
+typedef uint8_t		u8;
+typedef int8_t		i8;
+typedef enum vibe	Vibe;
+
+static void	vibe		(Vibe);
 static void	onwinload	(Window*);
 static void	onwinunload	(Window*);
+static void	onbody		(Layer*, GContext*);
+static void	onhour		(Layer*, GContext*);
+static void	onminute	(Layer*, GContext*);
+static void	onbottom	(Layer*, GContext*);
+static void	onside		(Layer*, GContext*);
+static void	ontick		(struct tm*, TimeUnits);
 
-static BitmapLayer*	body;
-static GBitmap*		bitmap;
+static struct {
+	GColor	bg;
+	GColor	fg;
+	char	side[64];
+	char	bottom[64];
+	Vibe	bton;
+	Vibe	btoff;
+	Vibe	onhour;
+	bool	padh;
+	u8	shadow;
+	i8	seconds;
+} conf;
+
+static struct {
+	GDrawCommandImage*	digits;
+	GFont	small;
+	GFont	tiny;
+} asset;
+
+static struct {
+	Layer*	body;
+	Layer*	hour;
+	Layer*	minute;
+	Layer*	bottom;
+	Layer*	side;
+} layout;
+
+void
+vibe(Vibe type)
+{
+	switch (type) {
+	case VIBE_SILENT: break;
+	case VIBE_SHORT:  vibes_short_pulse(); break;
+	case VIBE_LONG:   vibes_long_pulse(); break;
+	case VIBE_DOUBLE: vibes_double_pulse(); break;
+	}
+}
 
 void
 onwinload(Window *win)
@@ -15,15 +68,86 @@ onwinload(Window *win)
 	root = window_get_root_layer(win);
 	rect = layer_get_bounds(root);
 
-	body = bitmap_layer_create(rect);
-	bitmap_layer_set_bitmap(body, bitmap);
-	layer_add_child(root, bitmap_layer_get_layer(body));
+	layout.body = layer_create(rect);
+	layer_set_update_proc(layout.body, onbody);
+	layer_add_child(root, layout.body);
+
+	layout.hour = layer_create(rect);
+	layer_set_update_proc(layout.hour, onhour);
+	layer_add_child(root, layout.hour);
+
+	layout.minute = layer_create(rect);
+	layer_set_update_proc(layout.minute, onminute);
+	layer_add_child(root, layout.minute);
+
+	layout.bottom = layer_create(rect);
+	layer_set_update_proc(layout.bottom, onbottom);
+	layer_add_child(root, layout.bottom);
+
+	layout.side = layer_create(rect);
+	layer_set_update_proc(layout.side, onside);
+	layer_add_child(root, layout.side);
 }
 
 void
 onwinunload(Window *_win)
 {
-	bitmap_layer_destroy(body);
+	layer_destroy(layout.hour);
+	layer_destroy(layout.minute);
+	layer_destroy(layout.bottom);
+	layer_destroy(layout.side);
+	layer_destroy(layout.body);
+}
+
+void
+onbody(Layer *layer, GContext *ctx)
+{
+	graphics_context_set_fill_color(ctx, conf.bg);
+	graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
+}
+
+void
+onhour(Layer *layer, GContext *ctx)
+{
+	(void)layer;
+	(void)ctx;
+}
+
+void
+onminute(Layer *layer, GContext *ctx)
+{
+	(void)layer;
+	(void)ctx;
+}
+
+void
+onbottom(Layer *layer, GContext *ctx)
+{
+	(void)layer;
+	(void)ctx;
+}
+
+void
+onside(Layer *layer, GContext *ctx)
+{
+	(void)layer;
+	(void)ctx;
+}
+
+
+void
+ontick(struct tm *_time, TimeUnits change)
+{
+	layer_mark_dirty(layout.bottom);
+	layer_mark_dirty(layout.side);
+
+	if (change & HOUR_UNIT) {
+		layer_mark_dirty(layout.hour);
+		vibe(conf.onhour);
+	}
+
+	if (change & MINUTE_UNIT)
+		layer_mark_dirty(layout.minute);
 }
 
 int
@@ -31,9 +155,24 @@ main(void)
 {
 	Window *win;
 	WindowHandlers wh;
+	time_t timestamp;
 
 	/* resources */
-	bitmap = gbitmap_create_with_resource(RESOURCE_ID_TEST);
+	asset.digits = gdraw_command_image_create_with_resource(RESOURCE_ID_DIGITS);
+	asset.small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT10));
+	asset.tiny = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT7));
+
+	/* config */
+	conf.bg = GColorWhite;
+	conf.fg = GColorBlack;
+	strncpy(conf.side, "%B %Y", sizeof conf.side);
+	strncpy(conf.bottom, "%A %d", sizeof conf.bottom);
+	conf.bton = VIBE_SILENT;
+	conf.btoff = VIBE_SILENT;
+	conf.onhour = VIBE_SILENT;
+	conf.padh = false;
+	conf.shadow = 16;
+	conf.seconds = 0;
 
 	/* window */
 	win = window_create();
@@ -44,12 +183,23 @@ main(void)
 	window_set_window_handlers(win, wh);
 	window_stack_push(win, true);
 
+	/* time */
+	timestamp = time(0);
+	ontick(localtime(&timestamp), MINUTE_UNIT);
+	/* Tick timer is overwritten in configure() but this is a
+	 * default just in case there is something wrong with config
+	 * which might happen when phone is disconnected, probably.
+	 */
+	tick_timer_service_subscribe(MINUTE_UNIT, ontick);
+
 	/* main */
 	app_event_loop();
 
 	/* cleanup */
 	window_destroy(win);
-	gbitmap_destroy(bitmap);
+	gdraw_command_image_destroy(asset.digits);
+	fonts_unload_custom_font(asset.small);
+	fonts_unload_custom_font(asset.tiny);
 
 	return 0;
 }
