@@ -1,12 +1,18 @@
 #include <pebble.h>
 
+#ifdef PBL_PLATFORM_EMERY
+	#define IF_EMERY_ELSE(if_true, if_false) (if_true)
+#else
+	#define IF_EMERY_ELSE(if_true, if_false) (if_false)
+#endif
+
 #define CONFKEY		1
 #define CHRONOGRAPHKEY	2
 #define WEATHERKEY	3
 #define MARGIN		5
-#define SPACING		5
-#define DIGITSH		70
-#define DIGITSW		60
+#define SPACING		IF_EMERY_ELSE(7, 5)
+#define DIGITSW		IF_EMERY_ELSE(84, 60)
+#define DIGITSH		IF_EMERY_ELSE(98, 70)
 #define FONT7W		7
 #define FONT7H		7
 #define FONT10W		8
@@ -17,11 +23,11 @@
 #define DIVIDER		0x7F
 
 #ifdef PBL_RECT
-#define SIDEMAX ((PBL_DISPLAY_HEIGHT - MARGIN*2 - FONT10H - SPACING + LETTERSPACING*2) / FONT7H)
-#define BOTTOMMAX ((PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING) / FONT10W)
+	#define SIDEMAX ((PBL_DISPLAY_HEIGHT - MARGIN*2 - FONT10H - SPACING + LETTERSPACING*2) / FONT7H)
+	#define BOTTOMMAX ((PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING) / FONT10W)
 #else
-#define SIDEMAX		17
-#define BOTTOMMAX	17
+	#define SIDEMAX		17
+	#define BOTTOMMAX	17
 #endif
 
 enum vibe {
@@ -190,7 +196,18 @@ static struct {
 	u16	airus;		/* 0-500 air quality index in us */
 } weather = {NA, NA, NA, WMO_UNKNOWN, 0, 0};
 
-static const i16 digitswidth[10] = {60, 30, 60, 60, 45, 60, 60, 45, 60, 60};
+static const i16 digitswidth[10] = {
+	DIGITSW,
+	DIGITSW / 2,
+	DIGITSW,
+	DIGITSW,
+	DIGITSW * 0.75,
+	DIGITSW,
+	DIGITSW,
+	DIGITSW * 0.75,
+	DIGITSW,
+	DIGITSW
+};
 
 #ifdef PBL_RECT
 void
@@ -755,7 +772,7 @@ onhour(Layer *layer, GContext *ctx)
 	timestamp = time(0);
 	tm = localtime(&timestamp);
 	strftime(buf, sizeof buf, clock_is_24h_style() ? "%H" : "%I", tm);
-
+	
 	pt = buf;
 
 	if (conf.padh && pt[0] == '0')
@@ -846,7 +863,7 @@ onminute(Layer *layer, GContext *ctx)
 
 	bounds = layer_get_bounds(layer);
 
-#ifdef PBL_REC
+#ifdef PBL_RECT
 	(void)i;
 	(void)width;
 
