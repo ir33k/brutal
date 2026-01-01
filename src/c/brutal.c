@@ -12,11 +12,17 @@
 #define FONT10W		8
 #define FONT10H		10
 #define LETTERSPACING	2
-#define SIDEMAX ((PBL_DISPLAY_HEIGHT - MARGIN*2 - FONT10H - SPACING + LETTERSPACING*2) / FONT7H)
-#define BOTTOMMAX ((PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING) / FONT10W)
 #define NA		"N/A"		/* not available */
 #define WEATHERINTERVAL (30*60)
 #define DIVIDER		0x7F
+
+#ifdef PBL_RECT
+#define SIDEMAX ((PBL_DISPLAY_HEIGHT - MARGIN*2 - FONT10H - SPACING + LETTERSPACING*2) / FONT7H)
+#define BOTTOMMAX ((PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING) / FONT10W)
+#else
+#define SIDEMAX		17
+#define BOTTOMMAX	17
+#endif
 
 enum vibe {
 	VIBE_SILENT,
@@ -94,8 +100,8 @@ typedef enum weather	Weather;
 
 #ifdef PBL_RECT
 static void	spread		(char*, u8 max);
-#endif
 static int	normal		(int v, int vmin, int vmax, int min, int max);
+#endif
 static void	configure	();
 static void	uppercase	(char*);
 static char*	formatstr	(char*);
@@ -105,8 +111,10 @@ static char*	weather2str	(Weather);
 static Icon	weather2ico	(Weather);
 static void	drawpixel	(GBitmapDataRowInfo*, i16, GColor);
 static void	dither		(Layer*, GContext*, u8);
-static void	drawdigits	(char*, GPoint offset, GContext*);
-static void	drawshadow	(char*, GPoint offset, GContext*);
+#ifdef PBL_RECT
+static void	drawdigitsright	(char*, GPoint offset, GContext*);
+#endif
+static void	drawdigitsleft	(char*, GPoint offset, GContext*);
 static void	onwinload	(Window*);
 static void	onwinunload	(Window*);
 static void	onbody		(Layer*, GContext*);
@@ -120,7 +128,9 @@ static void	onbattery	(BatteryChargeState);
 static void	onconnection	(bool);
 static void	ontap		(AccelAxisType, i32);
 static void	ontimer		(void*);
+#if PBL_RECT
 static void	onquickview	(AnimationProgress, void*);
+#endif
 #ifdef PBL_HEALTH
 static void	onhealth	(HealthEventType, void*);
 #endif
@@ -218,7 +228,6 @@ spread(char *str, u8 max)
 	memmove(str + di + gap, str+di, len - di + 1);
 	memset(str+di, ' ', gap + 1);
 }
-#endif
 
 // Normalize V value with VMIN minimum possible value and VMAX maximum
 // possible value to fit in range from MIN to MAX.
@@ -227,6 +236,7 @@ normal(int v, int vmin, int vmax, int min, int max)
 {
 	return ((float)(v-vmin) / (float)(vmax-vmin)) * (float)(max-min) + min;
 }
+#endif
 
 void
 configure()
@@ -569,23 +579,28 @@ dither(Layer *layer, GContext *ctx, u8 amount)
 		{  60, 188,  28, 156,  52, 180,  20, 148 },
 		{ 252, 124, 220,  92, 244, 116, 212,  84 }
 	};
-	GRect rect;
+	GRect frame;
 	GBitmap *fb;
 	GBitmapDataRowInfo info;
 	i16 x, y, maxx, maxy;
 
-	rect = layer_get_frame(layer);
-	maxy = rect.origin.y + rect.size.h;
+	frame = layer_get_frame(layer);
+	maxy = frame.origin.y + frame.size.h;
 	fb = graphics_capture_frame_buffer(ctx);
 
-	for (y = rect.origin.y; y < maxy; y++) {
+	for (y = frame.origin.y; y < maxy; y++) {
 		info = gbitmap_get_data_row_info(fb, y);
-		maxx = rect.origin.x + rect.size.w;
+		maxx = frame.origin.x + frame.size.w;
 
 		if (info.max_x < maxx)
 			maxx = info.max_x;
 
-		for (x = rect.origin.x; x < maxx; x++)
+		x = frame.origin.x;
+
+		if (x < info.min_x)
+			x = info.min_x;
+
+		for (; x < maxx; x++)
 			if (amount > map[y%8][x%8])
 				drawpixel(&info, x, conf.bg);
 	}
@@ -593,8 +608,9 @@ dither(Layer *layer, GContext *ctx, u8 amount)
 	graphics_release_frame_buffer(ctx, fb);
 }
 
+#ifdef PBL_RECT
 void
-drawdigits(char *str, GPoint offset, GContext *ctx)
+drawdigitsright(char *str, GPoint offset, GContext *ctx)
 {
 	GDrawCommandList *cmds;
 	GDrawCommand *cmd;
@@ -614,9 +630,10 @@ drawdigits(char *str, GPoint offset, GContext *ctx)
 		gdraw_command_set_hidden(cmd, true);
 	}
 }
+#endif
 
 void
-drawshadow(char *str, GPoint offset, GContext *ctx)
+drawdigitsleft(char *str, GPoint offset, GContext *ctx)
 {
 	GDrawCommandList *cmds;
 	GDrawCommand *cmd;
@@ -649,34 +666,59 @@ onwinload(Window *win)
 	layer_set_update_proc(layout.body, onbody);
 	layer_add_child(root, layout.body);
 
+#ifdef PBL_RECT
 	rect.origin.x = PBL_DISPLAY_WIDTH - MARGIN - DIGITSW*2 - SPACING;
 	rect.origin.y = MARGIN;
 	rect.size.w = DIGITSW*2 + SPACING;
 	rect.size.h = DIGITSH;
+#else
+	rect.origin.x = 0;
+	rect.origin.y = 15;
+	rect.size.w = PBL_DISPLAY_WIDTH;
+	rect.size.h = DIGITSH;
+#endif
 
 	layout.hour = layer_create(rect);
 	layer_set_update_proc(layout.hour, onhour);
 	layer_add_child(layout.body, layout.hour);
 
+#ifdef PBL_RECT
 	rect.origin.y += SPACING + DIGITSH;
+#else
+	rect.origin.y = 60;
+#endif
 
 	layout.minute = layer_create(rect);
 	layer_set_update_proc(layout.minute, onminute);
 	layer_add_child(layout.body, layout.minute);
 
+#ifdef PBL_RECT
 	rect.origin.x = MARGIN;
 	rect.origin.y += SPACING + DIGITSH - LETTERSPACING;
 	rect.size.w = PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING;
 	rect.size.h = FONT10H;
+#else
+	rect.origin.x = 0;
+	rect.origin.y = 60 + DIGITSH + 5;
+	rect.size.w = PBL_DISPLAY_WIDTH;
+	rect.size.h = FONT10H;
+#endif
 
 	layout.bottom = layer_create(rect);
 	layer_set_update_proc(layout.bottom, onbottom);
 	layer_add_child(layout.body, layout.bottom);
 
+#ifdef PBL_RECT
 	rect.origin.x = MARGIN;
 	rect.origin.y = MARGIN - LETTERSPACING;
 	rect.size.w = FONT7W;
 	rect.size.h = PBL_DISPLAY_HEIGHT - MARGIN*2 - SPACING - FONT10H + LETTERSPACING*2;
+#else
+	rect.origin.x = 0;
+	rect.origin.y = 60 + DIGITSH + 5*3 + 8;
+	rect.size.w = PBL_DISPLAY_WIDTH;
+	rect.size.h = FONT7H;
+#endif
 
 	layout.side = layer_create(rect);
 	layer_set_update_proc(layout.side, onside);
@@ -708,7 +750,7 @@ onhour(Layer *layer, GContext *ctx)
 	char buf[8], *pt;
 	GRect frame, bounds;
 	GPoint offset;
-	i16 overlap;
+	i16 i, overlap, width;
 
 	timestamp = time(0);
 	tm = localtime(&timestamp);
@@ -720,20 +762,25 @@ onhour(Layer *layer, GContext *ctx)
 		pt++;
 
 	bounds = layer_get_bounds(layer);
+
+#ifdef PBL_RECT
+	(void)i;
+	(void)width;
+
 	frame = layer_get_frame(layout.minute);
 	overlap = MARGIN + DIGITSH + SPACING - frame.origin.y;
 
 	if (overlap < 51) {	/* TODO(irek): Magic number */
 		offset.x = 0;
 		offset.y = 0;
-		drawshadow(buf, offset, ctx);
+		drawdigitsleft(buf, offset, ctx);
 		dither(layer, ctx, 255 - normal(overlap, 51, 0, 0, conf.shadow));
 	}
 
 	if (overlap) {
 		offset.x = bounds.size.w;
 		offset.y = 0;
-		drawdigits(pt, offset, ctx);
+		drawdigitsright(pt, offset, ctx);
 		dither(layer, ctx, 255 - normal(overlap, 0, 51, 0, conf.shadow));
 
 		bounds.origin.x = bounds.size.w - FONT10W*2 - LETTERSPACING;
@@ -750,8 +797,37 @@ onhour(Layer *layer, GContext *ctx)
 	} else {
 		offset.x = bounds.size.w;
 		offset.y = 0;
-		drawdigits(pt, offset, ctx);
+		drawdigitsright(pt, offset, ctx);
 	}
+#else
+	(void)overlap;
+	(void)frame;
+
+	width = 0;
+
+	for (i=0; pt[i]; i++)
+		width += digitswidth[pt[i] - '0'] + SPACING;
+
+	width -= SPACING;
+
+	offset.x = bounds.size.w / 2 - width / 2;
+	offset.y = 0;
+
+	drawdigitsleft(pt, offset, ctx);
+	dither(layer, ctx, 255 - conf.shadow);
+
+	bounds.origin.x = (bounds.size.w - FONT10W*2 - LETTERSPACING) / 2;
+	bounds.origin.y = -2;
+	bounds.size.w = FONT10W*2 + LETTERSPACING*2;
+	bounds.size.h = FONT10H + LETTERSPACING;
+
+	graphics_context_set_fill_color(ctx, conf.bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+		graphics_context_set_text_color(ctx, conf.fg);
+		graphics_draw_text(ctx, pt, asset.font10, bounds,
+				   GTextOverflowModeWordWrap,
+				   GTextAlignmentRight, NULL);
+#endif	
 }
 
 void
@@ -762,26 +838,46 @@ onminute(Layer *layer, GContext *ctx)
 	char buf[8];
 	GRect bounds, frame;
 	GPoint offset;
-	i16 overlap;
+	i16 i, overlap, width;
 
 	timestamp = time(0);
 	tm = localtime(&timestamp);
 	strftime(buf, sizeof buf, "%M", tm);
 
 	bounds = layer_get_bounds(layer);
+
+#ifdef PBL_REC
+	(void)i;
+	(void)width;
+
 	frame = layer_get_frame(layout.minute);
 	overlap = MARGIN + DIGITSH + SPACING - frame.origin.y;
 
 	if (overlap < 51) {	/* TODO(irek): Magic number */
 		offset.x = 0;
 		offset.y = 0;
-		drawshadow(buf, offset, ctx);
+		drawdigitsleft(buf, offset, ctx);
 		dither(layer, ctx, 255 - normal(overlap, 51, 0, 0, conf.shadow));
 	}
 
 	offset.x = bounds.size.w;
 	offset.y = 0;
-	drawdigits(buf, offset, ctx);
+	drawdigitsright(buf, offset, ctx);
+#else
+	(void)overlap;
+	(void)frame;
+
+	width = 0;
+
+	for (i=0; buf[i]; i++)
+		width += digitswidth[buf[i] - '0'] + SPACING;
+
+	width -= SPACING;
+
+	offset.x = bounds.size.w / 2 - width / 2;
+	offset.y = 0;
+	drawdigitsleft(buf, offset, ctx);
+#endif
 }
 
 void
@@ -789,7 +885,7 @@ onbottom(Layer *layer, GContext *ctx)
 {
 	time_t timestamp;
 	struct tm *tm;
-	char buf[64], *fmt;
+	char buf[32], *fmt;
 	GRect bounds;
 
 	timestamp = time(0);
@@ -803,10 +899,16 @@ onbottom(Layer *layer, GContext *ctx)
 	uppercase(buf);
 #ifdef PBL_RECT
 	spread(buf, BOTTOMMAX);
-#endif
+
 	graphics_draw_text(ctx, buf, asset.font10, bounds,
 			   GTextOverflowModeWordWrap,
 			   GTextAlignmentRight, NULL);
+#else
+	buf[BOTTOMMAX] = 0;
+	graphics_draw_text(ctx, buf, asset.font10, bounds,
+			   GTextOverflowModeWordWrap,
+			   GTextAlignmentCenter, NULL);
+#endif
 }
 
 void
@@ -814,7 +916,7 @@ onside(Layer *layer, GContext *ctx)
 {
 	time_t timestamp;
 	struct tm *tm;
-	char tmp[64], buf[128], *fmt;
+	char tmp[32], buf[64], *fmt;
 	GRect bounds;
 	u16 i, j;
 
@@ -827,9 +929,9 @@ onside(Layer *layer, GContext *ctx)
 	fmt = formatstr(conf.side);
 	strftime(tmp, sizeof tmp, fmt, tm);
 	uppercase(tmp);
+
 #ifdef PBL_RECT
 	spread(tmp, SIDEMAX);
-#endif
 
 	for (i=0, j=0; tmp[i] && j < sizeof buf - 1; i+=1) {
 		buf[j++] = tmp[i];
@@ -840,6 +942,16 @@ onside(Layer *layer, GContext *ctx)
 	graphics_draw_text(ctx, buf, asset.font7, bounds,
 			   GTextOverflowModeWordWrap,
 			   GTextAlignmentLeft, NULL);
+#else
+	(void)buf;
+	(void)i;
+	(void)j;
+
+	tmp[SIDEMAX] = 0;
+	graphics_draw_text(ctx, tmp, asset.font7, bounds,
+			   GTextOverflowModeWordWrap,
+			   GTextAlignmentCenter, NULL);
+#endif
 }
 
 
@@ -1004,6 +1116,7 @@ ontimer(void *ctx)
 	app_timer_register(1000, ontimer, count);
 }
 
+#if PBL_RECT
 void
 onquickview(AnimationProgress _progress, void *_ctx)
 {
@@ -1025,6 +1138,7 @@ onquickview(AnimationProgress _progress, void *_ctx)
 
 	layer_mark_dirty(layout.hour);
 }
+#endif
 
 #ifdef PBL_HEALTH
 void
@@ -1061,7 +1175,6 @@ main(void)
 	Window *win;
 	WindowHandlers wh;
 	time_t timestamp;
-	UnobstructedAreaHandlers quickview;
 
 	/* resources */
 	asset.digits = gdraw_command_image_create_with_resource(RESOURCE_ID_DIGITS);
@@ -1105,7 +1218,9 @@ main(void)
 	tick_timer_service_subscribe(MINUTE_UNIT, ontick);
 	state.chronograph = timestamp;
 
+#if PBL_RECT
 	/* unobstructed area (quick view) */
+	UnobstructedAreaHandlers quickview;
 	quickview.will_change = 0;
 	quickview.change = onquickview;
 	quickview.did_change = 0;
@@ -1115,6 +1230,7 @@ main(void)
 	 * macro doing nothing.  In result the variable "quickview" is
 	 * never used and compailer complains. */
 	(void)quickview;
+#endif
 
 	/* services */
 	accel_tap_service_subscribe(ontap);
