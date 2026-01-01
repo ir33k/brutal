@@ -93,6 +93,7 @@ typedef enum weather	Weather;
 #ifdef PBL_RECT
 static void	spread		(char*, u8 max);
 #endif
+static int	normal		(int v, int vmin, int vmax, int min, int max);
 static void	configure	();
 static void	uppercase	(char*);
 static char*	formatstr	(char*);
@@ -101,7 +102,7 @@ static void	weatherget	();
 static char*	weather2str	(Weather);
 static Icon	weather2ico	(Weather);
 static void	drawpixel	(GBitmapDataRowInfo*, i16, GColor);
-static void	dither		(Layer*, GContext*);
+static void	dither		(Layer*, GContext*, u8);
 static void	drawdigits	(char*, GPoint offset, GContext*);
 static void	drawshadow	(char*, GPoint offset, GContext*);
 static void	onwinload	(Window*);
@@ -117,6 +118,7 @@ static void	onbattery	(BatteryChargeState);
 static void	onconnection	(bool);
 static void	ontap		(AccelAxisType, i32);
 static void	ontimer		(void*);
+static void	onquickview	(AnimationProgress, void*);
 #ifdef PBL_HEALTH
 static void	onhealth	(HealthEventType, void*);
 #endif
@@ -205,6 +207,14 @@ spread(char *str, u8 max)
 		str[j] = ' ';
 }
 #endif
+
+// Normalize V value with VMIN minimum possible value and VMAX maximum
+// possible value to fit in range from MIN to MAX.
+int
+normal(int v, int vmin, int vmax, int min, int max)
+{
+	return ((float)(v-vmin) / (float)(vmax-vmin)) * (float)(max-min) + min;
+}
 
 void
 configure()
@@ -532,7 +542,7 @@ drawpixel(GBitmapDataRowInfo *info, i16 x, GColor color)
 }
 
 void
-dither(Layer *layer, GContext *ctx)
+dither(Layer *layer, GContext *ctx, u8 amount)
 {
 	static const uint8_t map[8][8] = {
 		{   0, 128,  32, 160,   8, 136,  40, 168 },
@@ -548,9 +558,7 @@ dither(Layer *layer, GContext *ctx)
 	GBitmap *fb;
 	GBitmapDataRowInfo info;
 	i16 x, y, maxx, maxy;
-	u8 amount;
 
-	amount = 255 - conf.shadow;
 	rect = layer_get_frame(layer);
 	maxy = rect.origin.y + rect.size.h;
 	fb = graphics_capture_frame_buffer(ctx);
@@ -683,8 +691,9 @@ onhour(Layer *layer, GContext *ctx)
 	time_t timestamp;
 	struct tm *tm;
 	char buf[8], *pt;
-	GRect bounds;
+	GRect frame, bounds;
 	GPoint offset;
+	i16 overlap;
 
 	timestamp = time(0);
 	tm = localtime(&timestamp);
@@ -696,15 +705,38 @@ onhour(Layer *layer, GContext *ctx)
 		pt++;
 
 	bounds = layer_get_bounds(layer);
+	frame = layer_get_frame(layout.minute);
+	overlap = MARGIN + DIGITSH + SPACING - frame.origin.y;
 
-	offset.x = 0;
-	offset.y = 0;
-	drawshadow(buf, offset, ctx);
-	dither(layer, ctx);
+	if (overlap < 51) {	/* TODO(irek): Magic number */
+		offset.x = 0;
+		offset.y = 0;
+		drawshadow(buf, offset, ctx);
+		dither(layer, ctx, 255 - normal(overlap, 51, 0, 0, conf.shadow));
+	}
 
-	offset.x = bounds.size.w;
-	offset.y = 0;
-	drawdigits(pt, offset, ctx);
+	if (overlap) {
+		offset.x = bounds.size.w;
+		offset.y = 0;
+		drawdigits(pt, offset, ctx);
+		dither(layer, ctx, 255 - normal(overlap, 0, 51, 0, conf.shadow));
+
+		bounds.origin.x = bounds.size.w - FONT10W*2 - LETTERSPACING;
+		bounds.origin.y = -2;
+		bounds.size.w = FONT10W*2 + LETTERSPACING*2;
+		bounds.size.h = FONT10H + LETTERSPACING;
+		graphics_context_set_fill_color(ctx, conf.bg);
+		graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+		graphics_context_set_text_color(ctx, conf.fg);
+		graphics_draw_text(ctx, pt, asset.font10, bounds,
+				   GTextOverflowModeWordWrap,
+				   GTextAlignmentRight, NULL);
+	} else {
+		offset.x = bounds.size.w;
+		offset.y = 0;
+		drawdigits(pt, offset, ctx);
+	}
 }
 
 void
@@ -713,19 +745,24 @@ onminute(Layer *layer, GContext *ctx)
 	time_t timestamp;
 	struct tm *tm;
 	char buf[8];
-	GRect bounds;
+	GRect bounds, frame;
 	GPoint offset;
+	i16 overlap;
 
 	timestamp = time(0);
 	tm = localtime(&timestamp);
 	strftime(buf, sizeof buf, "%M", tm);
 
 	bounds = layer_get_bounds(layer);
+	frame = layer_get_frame(layout.minute);
+	overlap = MARGIN + DIGITSH + SPACING - frame.origin.y;
 
-	offset.x = 0;
-	offset.y = 0;
-	drawshadow(buf, offset, ctx);
-	dither(layer, ctx);
+	if (overlap < 51) {	/* TODO(irek): Magic number */
+		offset.x = 0;
+		offset.y = 0;
+		drawshadow(buf, offset, ctx);
+		dither(layer, ctx, 255 - normal(overlap, 51, 0, 0, conf.shadow));
+	}
 
 	offset.x = bounds.size.w;
 	offset.y = 0;
@@ -952,6 +989,28 @@ ontimer(void *ctx)
 	app_timer_register(1000, ontimer, count);
 }
 
+void
+onquickview(AnimationProgress _progress, void *_ctx)
+{
+	GRect bounds, frame;
+
+	bounds = layer_get_unobstructed_bounds(layout.body);
+
+	frame = layer_get_frame(layout.minute);
+	frame.origin.y = bounds.size.h - MARGIN - FONT10H - DIGITSH - SPACING + LETTERSPACING;
+	layer_set_frame(layout.minute, frame);
+
+	frame = layer_get_frame(layout.bottom);
+	frame.origin.y = bounds.size.h - MARGIN - FONT10H;
+	layer_set_frame(layout.bottom, frame);
+
+	frame = layer_get_frame(layout.side);
+	frame.size.h = bounds.size.h - MARGIN*2 - FONT10H - 1;	/* TODO(irek): Magic number */
+	layer_set_frame(layout.side, frame);
+
+	layer_mark_dirty(layout.hour);
+}
+
 #ifdef PBL_HEALTH
 void
 onhealth(HealthEventType event, void *_ctx)
@@ -987,6 +1046,7 @@ main(void)
 	Window *win;
 	WindowHandlers wh;
 	time_t timestamp;
+	UnobstructedAreaHandlers quickview;
 
 	/* resources */
 	asset.digits = gdraw_command_image_create_with_resource(RESOURCE_ID_DIGITS);
@@ -1029,6 +1089,17 @@ main(void)
 	 */
 	tick_timer_service_subscribe(MINUTE_UNIT, ontick);
 	state.chronograph = timestamp;
+
+	/* unobstructed area (quick view) */
+	quickview.will_change = 0;
+	quickview.change = onquickview;
+	quickview.did_change = 0;
+	unobstructed_area_service_subscribe(quickview, 0);
+	onquickview(0, NULL);
+	/* NOTE(irek): Aplite has unobstructed_area_service_subscribe
+	 * macro doing nothing.  In result the variable "quickview" is
+	 * never used and compailer complains. */
+	(void)quickview;
 
 	/* services */
 	accel_tap_service_subscribe(ontap);
