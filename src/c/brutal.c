@@ -18,9 +18,9 @@
 #define FONT10W		8
 #define FONT10H		10
 #define LETTERSPACING	2
-#define NA		"N/A"		/* not available */
 #define WEATHERINTERVAL (30*60)
 #define DIVIDER		0x7F
+#define NA		INT16_MAX	/* not available */
 
 #ifdef PBL_RECT
 	#define SIDEMAX ((PBL_DISPLAY_HEIGHT - MARGIN*2 - FONT10H - SPACING + LETTERSPACING*2) / FONT7H)
@@ -90,8 +90,6 @@ enum weather {		/* WMO Weather interpretation codes */
 	WMO_THUNDERSTORM             = 95,
 	WMO_THUNDERSTORM_SLIGHT_HAIL = 96,
 	WMO_THUNDERSTORM_HEAVY_HAIL  = 99,
-	/* not part of WMO standard */
-	WMO_UNKNOWN                  = 100,
 };
 
 typedef uint8_t		u8;
@@ -187,14 +185,13 @@ static struct {
 } health = {0};
 
 static struct {
-	/* TODO(irek): Use integer for temperature */
-	char	temp[8];
-	char	temphigh[8];
-	char	templow[8];
-	u8	code;
-	u8	aireu;		/* 0-100 air quality index in europe */
-	u16	airus;		/* 0-500 air quality index in us */
-} weather = {NA, NA, NA, WMO_UNKNOWN, 0, 0};
+	i16	temp;
+	i16	temphigh;
+	i16	templow;
+	i16	code;
+	i16	aireu;		/* 0-100 air quality index in europe */
+	i16	airus;		/* 0-500 air quality index in us */
+} weather = {NA, NA, NA, NA, NA, NA};
 
 static const i16 digitswidth[10] = {
 	DIGITSW,
@@ -407,28 +404,56 @@ formatstr(char *fmt)
 			fmt++;
 			switch (*fmt) {
 			case 't':
-				i += snprintf(buf+i, n-i, "%s", weather.temp);
+				if (weather.temp == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
+				i += snprintf(buf+i, n-i, "%d", weather.temp);
 				break;
 			case 'h':
-				i += snprintf(buf+i, n-i, "%s", weather.temphigh);
+				if (weather.temphigh == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
+				i += snprintf(buf+i, n-i, "%d", weather.temphigh);
 				break;
 			case 'l':
-				i += snprintf(buf+i, n-i, "%s", weather.templow);
+				if (weather.templow == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
+				i += snprintf(buf+i, n-i, "%d", weather.templow);
 				break;
 			case 'u':
 				buf[i++] = conf.tempunit;
 				break;
 			case 'c':
+				if (weather.code == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
 				str = weather2str(weather.code);
 				i += snprintf(buf+i, n-i, "%s", str);
 				break;
 			case 'i':
+				if (weather.code == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
 				buf[i++] = weather2ico(weather.code);
 				break;
 			case 'a':
+				if (weather.aireu == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
 				i += snprintf(buf+i, n-i, "%u", weather.aireu);
 				break;
 			case 'A':
+				if (weather.airus == NA) {
+					i += snprintf(buf+i, n-i, "NA");
+					break;
+				}
 				i += snprintf(buf+i, n-i, "%u", weather.airus);
 				break;
 			}
@@ -530,7 +555,7 @@ weather2str(u8 code)
 	case WMO_THUNDERSTORM_SLIGHT_HAIL: return "Storm!";
 	case WMO_THUNDERSTORM_HEAVY_HAIL:  return "Storm!!";
 	}
-	return "Unknown";
+	return "NA";
 }
 
 Icon
@@ -997,20 +1022,17 @@ oninbox(DictionaryIterator *di, void *_ctx)
 
 
 	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERTEMP))) {
-		strncpy(weather.temp, tuple->value->cstring,
-			sizeof weather.temp -1);
+		weather.temp = tuple->value->int8;
 		state.lastweather = timestamp;
 	}
 
 	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERTEMPHIGH))) {
-		strncpy(weather.temphigh, tuple->value->cstring,
-			sizeof weather.temphigh -1);
+		weather.temphigh = tuple->value->int8;
 		state.lastweather = timestamp;
 	}
 
 	if ((tuple = dict_find(di, MESSAGE_KEY_WEATHERTEMPLOW))) {
-		strncpy(weather.templow, tuple->value->cstring,
-			sizeof weather.templow -1);
+		weather.templow = tuple->value->int8;
 		state.lastweather = timestamp;
 	}
 

@@ -316,10 +316,10 @@ function fetchWeather(temperatureUnit, pos) {
     var data = JSON.parse(res)
 
     Pebble.sendAppMessage({
-      WEATHERTEMP: data.current_weather.temperature.toString(),
-      WEATHERTEMPHIGH: data.daily.temperature_2m_max[0].toString(),
-      WEATHERTEMPLOW: data.daily.temperature_2m_min[0].toString(),
-      WEATHERCODE: data.current_weather.weathercode,
+      WEATHERTEMP:     Math.round(data.current_weather.temperature),
+      WEATHERTEMPHIGH: Math.round(data.daily.temperature_2m_max[0]),
+      WEATHERTEMPLOW:  Math.round(data.daily.temperature_2m_min[0]),
+      WEATHERCODE:     data.current_weather.weathercode,
     })
   })
 }
