@@ -1232,8 +1232,8 @@ main(void)
 	/* config */
 	conf.bg = GColorWhite;
 	conf.fg = GColorBlack;
-	strncpy(conf.side, "%B %Y", sizeof conf.side);
-	strncpy(conf.bottom, "%A %d", sizeof conf.bottom);
+	strncpy(conf.bottom, "&t&u&i,%a %d", sizeof conf.bottom);
+	strncpy(conf.side, "%B %Y,*w*q#b%%*b*c", sizeof conf.side);
 	conf.bton = VIBE_SILENT;
 	conf.btoff = VIBE_SILENT;
 	conf.onhour = VIBE_SILENT;
