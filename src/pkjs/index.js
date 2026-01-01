@@ -42,31 +42,51 @@ new Clay([
     "items": [
       {
         "type": "heading",
-        "defaultValue": "Bottom text"
+        "defaultValue": "Text"
       },
       {
-	"capabilities": ["NOT_PLATFORM_EMERY"],
         "type": "text",
-        "defaultValue": "Fits up to 17 characters."
+        "defaultValue": "There are pressets for each text line but you can use any format string in any of them."
       },
       {
-	"capabilities": ["PLATFORM_EMERY"],
         "type": "text",
-        "defaultValue": "Fits up to 24 characters."
+        "defaultValue": "Date and time placeholders start with % and follow strftime(3) manual page.  Try few presets to learn common combinations.  To insert regular % use %%."
+      },
+      {
+        "type": "text",
+        "defaultValue": "Pebble values placeholders start with #. #b is battery percent, #s todays steps counter, #d todays walking distance in meters, #h heart rate BPM, #z is sleep, #Z is deep sleep, #c is chronograph showing number of minutes since last Tap (shake), #w shows week graph with mark over current weekday, #W does the same with Sunday as first weekday."
+      },
+      {
+        "type": "text",
+        "defaultValue": "Icons placeholders start with *. *h is heart, *q is quiet time visible when active, *c is battery charging indicator visible during charging, *b shows battery icon, *w is a warning icon that appears when Bluetooth connection is lost, *s is icon for steps. To insert regular * use **."
+      },
+      {
+        "type": "text",
+        "defaultValue": "Weather placeholders start with &. &t is temperature, &h is highest expected temperature, &l is lowest expected temperature, &u inserts used temperature unit (F or C), &c is weather condition as text, &i gives icon of weather condition (works only in bottom text), &a is air condition EU standard in percent range from 0 (good) to 100 (bad), &A is arid condition US standard from 0 (good) to 500 (bad)."
       },
       {
 	"capabilities": ["RECT"],
         "type": "text",
         "defaultValue": "You can divide text to left and right parts with single comma (,) character."
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Bottom text line"
       },
       {
         "id": "bottom-select",
         "type": "select",
         "label": "Presets",
-        "defaultValue": "%A %d",
+        "defaultValue": "&t&u&i,%a %d",
         "options": [
           { "value": "",              "label": "NOTHING" },
-          { "value": "%A %d",         "label": "DEFAULT: Monday 18" },
+          { "value": "&t&u&i,%a %d",  "label": "DEFAULT: Weather, Mon 18" },
+          { "value": "%A %d",         "label": "Monday 18" },
           { "value": "%p",            "label": "AM/PM" },
           { "value": "%a %d",         "label": "Sun 18" },
           { "value": "%B %d",         "label": "November 18" },
@@ -83,10 +103,8 @@ new Clay([
         "id": "bottom-input",
         "type": "input",
         "messageKey": "BOTTOM",
-        "label": "Format",
-        "defaultValue": "%A %d",
-        "description": "Format strings follows strftime(3) manual page. Add '#B' to print battery charge percent. Add '#S' to print steps count from today."
-      },
+        "defaultValue": "&t&u&i,%A %d"
+      }
     ]
   },
   {
@@ -94,52 +112,35 @@ new Clay([
     "items": [
       {
         "type": "heading",
-        "defaultValue": "Side text"
-      },
-      {
-	"capabilities": ["NOT_PLATFORM_EMERY"],
-        "type": "text",
-        "defaultValue": "Fits up to 21 characters."
-      },
-      {
-	"capabilities": ["PLATFORM_EMERY"],
-        "type": "text",
-        "defaultValue": "Fits up to 29 characters."
-      },
-      {
-	"capabilities": ["RECT"],
-        "type": "text",
-        "defaultValue": "You can divide text to top and bottom parts with single comma (,) character."
+        "defaultValue": "Side text line"
       },
       {
         "id": "side-select",
         "type": "select",
         "label": "Presets",
-        "defaultValue": "%B %Y",
+        "defaultValue": "%B %Y,*w*q#b%%*b*c",
         "options": [
-          { "value": "",              "label": "NOTHING" },
-          { "value": "%B %Y",         "label": "DEFAULT: November 2024" },
-          { "value": "%p",            "label": "AM/PM" },
-          { "value": "%A %d",         "label": "Monday 18" },
-          { "value": "%a %d",         "label": "Sun 18" },
-          { "value": "%B %d",         "label": "November 18" },
-          { "value": "%b %d",         "label": "Nov 18" },
-          { "value": "%m/%d/%y",      "label": "11/18/24" },
-          { "value": "%Y.%m.%d",      "label": "2022.11.18" },
-          { "value": "%d.%m.%Y",      "label": "18.11.2022" },
-          { "value": "Rebble %Y",     "label": "Rebble 2022" },
-          { "value": "Battery #B",    "label": "Battery 75" },
-          { "value": "Steps #S",      "label": "Steps 500" },
-          { "value": "Steps #S,#B%%", "label": "Steps with battery" }
+          { "value": "",                   "label": "NOTHING" },
+          { "value": "%B %Y,*w*q#b%%*b*c", "label": "DEFAULT: November 2024, battery and status icons" },
+          { "value": "%p",                 "label": "AM/PM" },
+          { "value": "%A %d",              "label": "Monday 18" },
+          { "value": "%a %d",              "label": "Sun 18" },
+          { "value": "%B %d",              "label": "November 18" },
+          { "value": "%b %d",              "label": "Nov 18" },
+          { "value": "%m/%d/%y",           "label": "11/18/24" },
+          { "value": "%Y.%m.%d",           "label": "2022.11.18" },
+          { "value": "%d.%m.%Y",           "label": "18.11.2022" },
+          { "value": "Rebble %Y",          "label": "Rebble 2022" },
+          { "value": "Battery #B",         "label": "Battery 75" },
+          { "value": "Steps #S",           "label": "Steps 500" },
+          { "value": "Steps #S,#B%%",      "label": "Steps with battery" }
         ]
       },
       {
         "id": "side-input",
         "type": "input",
         "messageKey": "SIDE",
-        "label": "Format",
-        "defaultValue": "%B %Y",
-        "description": "Format strings follows strftime(3) manual page. Add '#B' to print battery charge percent. Add '#S' to print steps count from today."
+        "defaultValue": "%B %Y,*w*q#b%%*b*c"
       },
     ]
   },
