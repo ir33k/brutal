@@ -16,6 +16,7 @@
 #define BOTTOMMAX ((PBL_DISPLAY_WIDTH - MARGIN*2 + LETTERSPACING) / FONT10W)
 #define NA		"N/A"		/* not available */
 #define WEATHERINTERVAL (30*60)
+#define DIVIDER		0x7F
 
 enum vibe {
 	VIBE_SILENT,
@@ -170,6 +171,7 @@ static struct {
 } health = {0};
 
 static struct {
+	/* TODO(irek): Use integer for temperature */
 	char	temp[8];
 	char	temphigh[8];
 	char	templow[8];
@@ -184,28 +186,37 @@ static const i16 digitswidth[10] = {60, 30, 60, 60, 45, 60, 60, 45, 60, 60};
 void
 spread(char *str, u8 max)
 {
-	u8 len, i, j, space;
+	i16 i, di, len, gap;
 
 	len = strlen(str);
+	gap = max - len;
+	di = -1;
 
-	if (len >= max)
-		return;
-
-	for (i=0; i<len; i++)
-		if (str[i] == ',')
+	for (i=0; str[i]; i++)
+		switch (str[i]) {
+		case DIVIDER:
+			di = i;
 			break;
+		case ICON_SUN:
+		case ICON_CLEARSKY:
+		case ICON_CLOUDS:
+		case ICON_FOG:
+		case ICON_DRIZZLE:
+		case ICON_RAIN:
+		case ICON_STORM:
+		case ICON_SNOW:
+			gap--;		/* weather icons use one extra cell */
+			break;
+		}
 
-	if (i == len)	/* not found */
+	if (gap <= 0)
 		return;
 
-	str[i] = ' ';	/* hide divider */
-	space = max - len;
+	if (di == -1)
+		return;
 
-	for (j=len; j>i; j--)
-		str[j+space] = str[j];
-
-	for (j+=space; j>i; j--)
-		str[j] = ' ';
+	memmove(str + di + gap, str+di, len - di + 1);
+	memset(str+di, ' ', gap + 1);
 }
 #endif
 
@@ -399,6 +410,9 @@ formatstr(char *fmt)
 			fmt++;
 			buf[i++] = '%';
 			buf[i++] = *fmt;
+			break;
+		case ',':
+			buf[i++] = DIVIDER;
 			break;
 		case 0x01: case 0x02: case 0x03: case 0x04: case 0x05:
 		case 0x06: case 0x07: case 0x08: case 0x09: case 0x0A:
