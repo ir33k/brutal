@@ -6,7 +6,8 @@
 #define MARGIN		5
 #define SPACING		5
 #define DIGITSH		70
-#define FONT7W		4
+#define DIGITSW		60
+#define FONT7W		7
 #define FONT7H		7
 #define FONT10W		8
 #define FONT10H		10
@@ -407,11 +408,11 @@ formatstr(char *fmt)
 		case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E:
 		case 0x1F: case 0x7F:	/* skip white chars */
 			break;
-		case '!': case '"': case '$': case '\'':case '(':
-		case ')': case '+': case ';': case '<': case '=':
-		case '>': case '?': case '@': case '[': case '\\':
-		case ']': case '^': case '_': case '`': case '{':
-		case '|': case '}': case '~':
+		case '"': case '$': case '\'':case '(': case ')':
+		case '+': case ';': case '<': case '=': case '>':
+		case '?': case '@': case '[': case '\\':case ']':
+		case '^': case '_': case '`': case '{': case '|':
+		case '}': case '~':
 			/* skip unsupported characters */
 			break;
 		default:
@@ -634,9 +635,9 @@ onwinload(Window *win)
 	layer_set_update_proc(layout.body, onbody);
 	layer_add_child(root, layout.body);
 
-	rect.origin.x = MARGIN + FONT7W + SPACING;
+	rect.origin.x = PBL_DISPLAY_WIDTH - MARGIN - DIGITSW*2 - SPACING;
 	rect.origin.y = MARGIN;
-	rect.size.w = PBL_DISPLAY_WIDTH - MARGIN*2 - SPACING - FONT7W;
+	rect.size.w = DIGITSW*2 + SPACING;
 	rect.size.h = DIGITSH;
 
 	layout.hour = layer_create(rect);
