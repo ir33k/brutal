@@ -1,7 +1,7 @@
 {
   "name": "brutal",
   "author": "irek",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "keywords": [
     "pebble-watchface",
     "hackathon2",
@@ -58,6 +58,12 @@
     ],
     "resources": {
       "media": [
+        {
+          "menuIcon": "true",
+          "type": "png",
+          "name": "MENU_ICON",
+          "file": "icon.png"
+        },
         {
 	  "type": "raw",
 	  "name": "DIGITS",
