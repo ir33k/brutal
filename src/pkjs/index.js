@@ -94,8 +94,8 @@ new Clay([
           { "value": "%m/%d/%y",      "label": "11/18/24" },
           { "value": "%Y.%m.%d",      "label": "2022.11.18" },
           { "value": "%d.%m.%Y",      "label": "18.11.2022" },
-          { "value": "Battery: #B%%", "label": "Battery: 75%" },
-          { "value": "Steps: #S",     "label": "Steps: 500" },
+          { "value": "Battery: #b%%", "label": "Battery: 75%" },
+          { "value": "Steps: #s",     "label": "Steps: 500" },
           { "value": "%B %d,%S",      "label": "Date with seconds" }
         ]
       },
@@ -131,9 +131,9 @@ new Clay([
           { "value": "%Y.%m.%d",           "label": "2022.11.18" },
           { "value": "%d.%m.%Y",           "label": "18.11.2022" },
           { "value": "Rebble %Y",          "label": "Rebble 2022" },
-          { "value": "Battery #B",         "label": "Battery 75" },
-          { "value": "Steps #S",           "label": "Steps 500" },
-          { "value": "Steps #S,#B%%",      "label": "Steps with battery" }
+          { "value": "Battery #b",         "label": "Battery 75" },
+          { "value": "Steps #s",           "label": "Steps 500" },
+          { "value": "Steps #s,#b%%",      "label": "Steps with battery" }
         ]
       },
       {

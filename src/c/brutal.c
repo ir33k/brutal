@@ -257,8 +257,11 @@ configure()
 {
 	
 	if (strstr(conf.side, "#b") || strstr(conf.bottom, "#b") ||
+	    strstr(conf.side, "#B") || strstr(conf.bottom, "#B") ||
 	    strstr(conf.side, "*b") || strstr(conf.bottom, "*b") ||
-	    strstr(conf.side, "*c") || strstr(conf.bottom, "*c")) {
+	    strstr(conf.side, "*B") || strstr(conf.bottom, "*B") ||
+	    strstr(conf.side, "*c") || strstr(conf.bottom, "*c") ||
+	    strstr(conf.side, "*C") || strstr(conf.bottom, "*C")) {
 		battery_state_service_subscribe(onbattery);
 		onbattery(battery_state_service_peek());
 	} else {
@@ -275,7 +278,8 @@ configure()
 	}
 
 	if (state.useweather || conf.bton || conf.btoff ||
-	    strstr(conf.side, "*w") || strstr(conf.bottom, "*w")) {
+	    strstr(conf.side, "*w") || strstr(conf.bottom, "*w") ||
+	    strstr(conf.side, "*W") || strstr(conf.bottom, "*W")) {
 		connection_service_subscribe((ConnectionHandlers){ onconnection, 0 });
 		state.connected = connection_service_peek_pebble_app_connection();
 	} else {
@@ -286,10 +290,13 @@ configure()
 
 #ifdef PBL_HEALTH
 	if (strstr(conf.side, "#s") || strstr(conf.bottom, "#s") ||
+	    strstr(conf.side, "#S") || strstr(conf.bottom, "#S") ||
 	    strstr(conf.side, "#d") || strstr(conf.bottom, "#d") ||
+	    strstr(conf.side, "#D") || strstr(conf.bottom, "#D") ||
 	    strstr(conf.side, "#z") || strstr(conf.bottom, "#z") ||
 	    strstr(conf.side, "#Z") || strstr(conf.bottom, "#Z") ||
-	    strstr(conf.side, "#h") || strstr(conf.bottom, "#h")) {
+	    strstr(conf.side, "#h") || strstr(conf.bottom, "#h") ||
+	    strstr(conf.side, "#H") || strstr(conf.bottom, "#H")) {
 		health_service_events_subscribe(onhealth, 0);
 		onhealth(HealthEventSignificantUpdate, 0);
 	} else {
@@ -330,15 +337,19 @@ formatstr(char *fmt)
 			fmt++;
 			switch (*fmt) {
 			case 'b':
+			case 'B':
 				i += snprintf(buf+i, n-i, "%u", state.battery);
 				break;
 			case 's':
+			case 'S':
 				i += snprintf(buf+i, n-i, "%ld", health.steps);
 				break;
 			case 'd':
+			case 'D':
 				i += snprintf(buf+i, n-i, "%ld", health.dista);
 				break;
 			case 'h':
+			case 'H':
 				i += snprintf(buf+i, n-i, "%ld", health.heart);
 				break;
 			case 'z':
@@ -363,6 +374,7 @@ formatstr(char *fmt)
 				buf[i - 7 + wday] = '*';
 				break;
 			case 'c':
+			case 'C':
 				diff = timestamp - state.chronograph;
 				i += snprintf(buf+i, n-i, "%ld", diff / 60);
 				break;
@@ -373,22 +385,35 @@ formatstr(char *fmt)
 			icon = 0;
 			switch (*fmt) {
 			case '*': icon = '*'; break;
-			case 'h': icon = ICON_HEART; break;
-			case 's': icon = ICON_SHOE; break;
-			case 'd': icon = ICON_DEGREE; break;
+			case 'h':
+			case 'H':
+				icon = ICON_HEART;
+				break;
+			case 's':
+			case 'S':
+				icon = ICON_SHOE;
+				break;
+			case 'd':
+			case 'D':
+				icon = ICON_DEGREE;
+				break;
 			case 'q':
+			case 'Q':
 				if (quiet_time_is_active())
 					icon = ICON_QUIET;
 				break;
 			case 'w':
+			case 'W':
 				if (!state.connected)
 					icon = ICON_WARNING;
 				break;
 			case 'c':
+			case 'C':
 				if (state.charging)
 					icon = ICON_CHARGING;
 				break;
 			case 'b':
+			case 'B':
 				icon = ICON_BATTERY0;
 				/**/ if (state.battery>95) icon = ICON_BATTERY100;
 				else if (state.battery>75) icon = ICON_BATTERY80;
@@ -404,6 +429,7 @@ formatstr(char *fmt)
 			fmt++;
 			switch (*fmt) {
 			case 't':
+			case 'T':
 				if (weather.temp == NA) {
 					i += snprintf(buf+i, n-i, "NA");
 					break;
@@ -411,6 +437,7 @@ formatstr(char *fmt)
 				i += snprintf(buf+i, n-i, "%d", weather.temp);
 				break;
 			case 'h':
+			case 'H':
 				if (weather.temphigh == NA) {
 					i += snprintf(buf+i, n-i, "NA");
 					break;
@@ -418,6 +445,7 @@ formatstr(char *fmt)
 				i += snprintf(buf+i, n-i, "%d", weather.temphigh);
 				break;
 			case 'l':
+			case 'L':
 				if (weather.templow == NA) {
 					i += snprintf(buf+i, n-i, "NA");
 					break;
@@ -425,9 +453,11 @@ formatstr(char *fmt)
 				i += snprintf(buf+i, n-i, "%d", weather.templow);
 				break;
 			case 'u':
+			case 'U':
 				buf[i++] = conf.tempunit;
 				break;
 			case 'c':
+			case 'C':
 				if (weather.code == NA) {
 					i += snprintf(buf+i, n-i, "NA");
 					break;
@@ -436,6 +466,7 @@ formatstr(char *fmt)
 				i += snprintf(buf+i, n-i, "%s", str);
 				break;
 			case 'i':
+			case 'I':
 				if (weather.code == NA) {
 					i += snprintf(buf+i, n-i, "NA");
 					break;
