@@ -523,6 +523,8 @@ formatstr(char *fmt)
 void
 vibe(Vibe type)
 {
+	if (quiet_time_is_active()) return;
+
 	switch (type) {
 	case VIBE_SILENT: break;
 	case VIBE_SHORT:  vibes_short_pulse(); break;
