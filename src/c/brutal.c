@@ -1282,7 +1282,9 @@ main(void)
 
 	/* time */
 	timestamp = time(0);
-	ontick(localtime(&timestamp), DAY_UNIT | HOUR_UNIT | MINUTE_UNIT);
+	ontick(localtime(&timestamp), DAY_UNIT);
+	layer_mark_dirty(layout.hour);
+	layer_mark_dirty(layout.minute);
 	/* Tick timer is overwritten in configure() but this is a
 	 * default just in case there is something wrong with config
 	 * which might happen when phone is disconnected, probably.
